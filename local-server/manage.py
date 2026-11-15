@@ -258,6 +258,10 @@ def restore(path, confirmed):
         text = target.read_text(encoding="utf-8-sig")
         text = re.sub(r'^\s*SourceDirectory\s*=.*$', lambda _: 'SourceDirectory = "' + rollback_source.as_posix() + '"', text, flags=re.M)
         target.write_text(text, encoding="utf-8")
+        # Earlier snapshots preserved bnetserver's default-empty build list, hiding
+        # the realm from this same installed client. Keep compatibility on rollback.
+        from configure import ensure_accepted_builds
+        ensure_accepted_builds(target)
     print(f"Restored matching databases, binaries, credentials and configuration. Safety backup: {safety}")
     print(f"Migration source pinned to {rollback_source}. Start and check the server before playing.")
 

@@ -166,8 +166,10 @@ and game folder `F:\Games\World of Warcraft`. Keep the server build/update under
 .\source\local-server\Server.ps1 stop
 ```
 
-The planned local login is `aleksander@forever.local`, with a random password in `local\secrets.json`. It is a server-local
+The created local login is `aleksander@forever.local`, with a random password in `local\secrets.json`. It is a server-local
 account, not a Blizzard account. `create-account` preserves an existing account and needs a running world server.
+`Show-Login.ps1` opens a local window containing only this playing account, with the password masked by default and
+explicit reveal/copy controls. It never prints credentials, creates another credential file or copies automatically.
 This revision allows all accounts to control their own companions. The game account stays normal; the separate `FFADMIN`
 account is used only for local lifecycle commands. Do not use GM levelling, gear or teleport commands for progression checks.
 
@@ -176,6 +178,12 @@ bot make a party with a damage-dealing player. Party words `follow`, `stay`, `at
 give orders; `.bot call all` recalls saved bots. `.bot save all` saves the roster. See
 [BOT_COMMANDS.md](../src/modules/PlayerbotV2/BOT_COMMANDS.md) for formations, dungeon finder, raid assignments and limits.
 The addon is required for reliable whispers on this client.
+
+If login reaches gameplay-ruleset selection but Normal says no realms are available, check `Realm.AlsoAcceptBuilds`
+in **both** bnetserver.conf and worldserver.conf. The realm's native advertised build is 70707; this installation's
+verified compatibility list includes 70938,70888,70862. An empty login-server list hides it from build 70938 even if
+worldserver already accepts that build. `python source/local-server/configure.py` preserves other settings and migrates
+this one key in existing configs. Restart the login server after changing it (its accepted list is cached).
 
 ## Local gameplay choices
 

@@ -19,6 +19,8 @@ After discussing alternatives, the user explicitly authorized a new hostname-res
 - Normal start exposed/fixed a missing socket import in manage.py (the earlier world-only path did not exercise it). Server start now validates the hardened TLS profile. Play also validates it. Backup excludes ca.key, and restore preserves the current one-leaf identity when restoring older database snapshots.
 - Full normal start and SOAP server-info checks passed after installing the connection setup. MySQL 3317, login 1119/8081, world 8085 and SOAP 7878 listeners were all verified as 127.0.0.1 only. New hosts bytes were verified to equal the saved original plus only the exact tagged append. The saved server key ACL grants only danal, SYSTEM and Administrators.
 - Trust undo remains Certificates.ps1 -Undo as danal; hosts undo is Certificates.ps1 -HostsOnly -Undo as Administrator. They are two separate commands. Host undo preserves unrelated bytes/edits.
+- The user requested help with the launcher/password. Launcher accessibility labels confirmed the selected server is "This PC (own server)", address 127.0.0.1, portal trinity.actual.battle.net, region group 8. Wow.exe is running. Show-Login.ps1 displays only the game account locally, masked by default, with explicit reveal/copy controls and no credential stdout/file copy. Hidden PowerShell startup also hid the initial dialog; it was brought into view, the duplicate helper was closed, and the helper now explicitly shows its form on Shown. No actual in-game login has been observed yet.
+- User then reached gameplay-ruleset selection, but Normal reported no realms. Found effective bnetserver.conf still had Realm.AlsoAcceptBuilds="" while worldserver.conf accepted 70938/70888/70862; configure.py had preserved the earlier default-empty file. Backed up bnet config privately, migrated only the accepted-build key, and restarted only login (world process preserved). Both now have the same accepted list. configure.py migrates that key in earlier preserved configs, and restore reapplies it. User retry is pending; character selection/world entry are not yet confirmed. The latest full backup predates this compatibility-key correction, but the current restore helper reapplies it.
 
 ## Repository and installed build
 
@@ -40,7 +42,7 @@ After discussing alternatives, the user explicitly authorized a new hostname-res
 - VS 2022/MSVC 19.43, CMake 3.30.5, Ninja; MySQL 8.4.7 portable; Boost 1.92.0 static-md; OpenSSL 3.6.5 shared x64-windows; vcpkg baseline 8f363bdc11359ede4bc51e5eb32a2617538049c8.
 - Shared OpenSSL is essential: static libcrypto collided with bundled CascLib AES symbols in extractor linking. All targets and quest tests subsequently passed.
 - Build.ps1 uses a reversible short drive alias to avoid Windows command-line length limits. W: was removed and runtime restart was verified without it. SourceDirectory, MySQLExecutable and BuildDirectory use full F: paths in configs.
-- **Everything is stopped cleanly at handoff.** No Windows services, boot startup, firewall exceptions or router forwarding were installed. Runtime listeners, when tested, were only 127.0.0.1:3317 (MySQL), 7878 (SOAP), 8085 (world), 1119 and 8081 (login). MySQL X protocol is disabled. RA is off.
+- **The local server is running for client connection testing; the Forever launcher and game are open.** No Windows services, boot startup, firewall exceptions or router forwarding were installed. Runtime listeners were verified as only 127.0.0.1:3317 (MySQL), 7878 (SOAP), 8085 (world), 1119 and 8081 (login). MySQL X protocol is disabled. RA is off.
 
 ## Verified results
 
@@ -60,11 +62,12 @@ After discussing alternatives, the user explicitly authorized a new hostname-res
 
 ## Backups and recovery evidence
 
-- **Latest final backup:** backups/20261115T172439867172Z. It includes final configs/log caps, generated bot state, account data, binaries/DLLs, source and client-data manifests. Backup from a fully stopped state passed; all services were stopped again afterward.
+- **Latest backup:** backups/20261115T213559949958Z, created after installing the one-leaf TLS identity. SQL dump 990849043 bytes. Includes the new public CA/server certificates, server key and profile, with no CA signing key. Previous setup backup: backups/20261115T172439867172Z.
+- The latest backup passed an actual isolated restore on 127.0.0.1:3318: SHA-256 21a9f3bf36d6ca7cefe6aab1f70c1dee974f3e5d84dfb3ec4cd98fa21a268ded; all five schema counts matched (53/161/484/278/61 for auth/characters/hotfixes/world/playerbot). Critical counts matched: 34 game accounts, 33 BNet accounts, 1 realm, 315 characters including generated bots, 107335 bot names. Test MySQL stopped cleanly; production was not replaced. Report: backups/20261115T213559949958Z/restore-check.json.
 - **Isolated restore actually tested:** backups/20261115T165445573260Z. SQL dump 986825689 bytes, SHA256 fd3c9f455792a67c348e453e4f83539000a43dea1b4eb67c5b86e8165b29606b.
 - Restored into a new temporary MySQL on 127.0.0.1:3318, compared all five schema counts and critical row counts, then shut it down. Production data was not replaced. Report: that backup's restore-check.json and inspection/backup-restore-check.log.
 - Verified snapshot critical rows: 2 auth accounts, 1 BNet account, 1 realm, 3 characters (AH sellers, not real-player characters), 107335 shared bot names.
-- The later final backup was created/checksummed by the same tested mechanism, but was not separately imported again. The production-replacement restore path has not been exercised; the isolated SQL restoration has.
+- The older 172439 backup was not separately imported. The newest 213559 backup and earlier 165445 backup both passed isolated SQL restoration. The production-replacement restore path has not been exercised.
 - Recovery commands and matching-source worktree behavior are in README.md. Roll back matching DBs/configs/binaries together, not an executable alone after migrations. Extracted assets are not duplicated in DB backups; data-manifest compatibility is checked.
 
 ## Gameplay choices and known limitations

@@ -5,6 +5,33 @@ import re
 import shutil
 from bootstrap import ROOT, SOURCE, LOCAL, SERVER
 
+ACCEPTED_BUILDS = (70938, 70888, 70862)
+
+
+def ensure_accepted_builds(target):
+    """Migrate only this compatibility key in earlier preserved configs.
+
+    A default-empty bnet list hides a realm whose native build differs from the
+    installed client, even when worldserver already accepts that client build.
+    """
+    text = target.read_text(encoding="utf-8-sig")
+    pattern = r'^\s*Realm\.AlsoAcceptBuilds\s*=\s*"([^"\r\n]*)"[^\r\n]*'
+    match = re.search(pattern, text, flags=re.M)
+    builds = list(ACCEPTED_BUILDS)
+    if match:
+        for value in match.group(1).split(','):
+            value = value.strip()
+            if value:
+                if not value.isdecimal():
+                    raise RuntimeError(f"Invalid Realm.AlsoAcceptBuilds in {target.name}; preserved for inspection.")
+                if int(value) not in builds:
+                    builds.append(int(value))
+    line = 'Realm.AlsoAcceptBuilds = "' + ','.join(map(str, builds)) + '"'
+    updated = re.sub(pattern, lambda _: line, text, flags=re.M) if match else text + '\n' + line + '\n'
+    if updated != text:
+        target.write_text(updated, encoding="utf-8")
+        print(f"Updated accepted-client builds in {target.name}; other settings preserved.")
+
 
 def render(template, target, values):
     if target.exists():
@@ -47,6 +74,8 @@ def main():
         "CertificatesFile": quote(LOCAL / "certs/chain.pem"), "PrivateKeyFile": quote(LOCAL / "certs/server.key"),
         "PidFile": quote(LOCAL / "bnetserver.pid"),
     })
+    for name in ("bnetserver.conf", "worldserver.conf"):
+        ensure_accepted_builds(SERVER / name)
     for origin, target in [
         (SOURCE / "src/modules/PlayerbotV2/conf/playerbot.conf.dist", extra / "playerbot.conf"),
         (SOURCE / "local-server/local.conf.template", extra / "zzzz-aleksanderG.conf"),
