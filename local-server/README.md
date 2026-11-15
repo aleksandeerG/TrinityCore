@@ -155,6 +155,16 @@ Its release fixes launcher CPU usage for newer clients; server and addon content
 Choose Join / a server you built yourself, address `127.0.0.1`, portal `trinity.actual.battle.net`, region group 8,
 and game folder `F:\Games\World of Warcraft`. Keep the server build/update under these scripts, not the repack updater.
 
+The standalone launcher's **Stop server** action expects its script and working directory at
+`tools\repack\Stop-WoWForever.ps1`. This source deployment originally lacked that directory, causing "The directory
+name is invalid" before shutdown even ran. `Install-LauncherStop.ps1` installs a small marked adapter that delegates
+to `source\local-server\Server.ps1 stop`; `Play.ps1` ensures the adapter exists before opening the launcher. It uses
+the existing save/graceful world shutdown, verified login-process shutdown and MySQL flush/wait logic. The upstream
+launcher executable is unchanged, and no repack database or shutdown scripts are copied into this installation.
+The installer is idempotent and refuses to replace an unmanaged script. If needed, install it directly with
+`.\source\local-server\Install-LauncherStop.ps1`. For start, backup, restore and updates, use the source lifecycle
+commands below; this adapter does not claim to integrate every repack management button.
+
 ## Run and play
 
 ```powershell

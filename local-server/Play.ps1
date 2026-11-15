@@ -4,6 +4,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $launcher = Join-Path $root 'tools\WoWForeverLauncher.exe'
 if (!(Test-Path -LiteralPath $launcher)) { throw 'Download the checksum-verified v0.1.36.1 launcher described in README.md.' }
+& "$PSScriptRoot\Install-LauncherStop.ps1"
 $resolved = @()
 try { $resolved = @([Net.Dns]::GetHostAddresses('trinity.actual.battle.net') | ForEach-Object { $_.ToString() }) } catch { }
 if ($resolved -notcontains '127.0.0.1') { throw 'The local portal mapping is still pending. See Certificates.ps1 -HostsOnly.' }

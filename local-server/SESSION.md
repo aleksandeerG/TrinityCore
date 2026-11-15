@@ -8,6 +8,14 @@ User requested a locally hosted real WoW Forever server with optional companion,
 
 After discussing alternatives, the user explicitly authorized a new hostname-restricted CA, one longer-lived server certificate, destruction of the signing key, per-user trust and the hosts entry ("let's do this"). Applied the agreed five-year design: the NEW CA signing key was generated only in memory and never serialized; exactly one leaf was issued. No VM/sandbox or separate gaming account was created. Do not bypass TLS verification.
 
+## Launcher Stop integration - 16 November 2026
+
+- User could not stop through the launcher: "Saving characters and stopping the server ... The directory name is invalid". Server remained running after the failed attempt.
+- Inspected verified launcher assembly metadata/IL with the installed .NET Framework ildasm, without modifying its executable. MainForm sets Root to the executable directory (tools) and Here to Root/repack; DoStopServer passes Stop-WoWForever.ps1 to ServerOps.Run, which uses Here as both script directory and child process working directory. tools/repack did not exist. This is independent of the parent process's working directory.
+- Added Install-LauncherStop.ps1 and installed tools/repack/Stop-WoWForever.ps1 as a marked adapter to the maintained Server.ps1 stop routine. Play.ps1 installs/reuses it before launching. Unmanaged shutdown scripts are preserved with an error. No repack binaries, database scripts or private credentials are copied, and the launcher executable remains unchanged.
+- Installer ran twice successfully (creation then idempotent no-op); PowerShell parsing passed. Tested the launcher's actual ServerOps.Run entry point with its exact stop arguments/working directory, rather than only invoking our CLI. Test completes the user's requested shutdown; leave services stopped afterward. Other repack management buttons are not declared integrated: start/update/backup remain the maintained source commands.
+- Result: launcher command runner exit code 0, "Server stopped cleanly." Verified bnetserver/worldserver absent and listeners 3317/1119/8085 closed. The launcher can use the newly installed adapter without an application restart. Pre-stop playing-character/quest snapshot is local/launcher-stop-before.json. Do not claim the entire launcher Start/Restart/Update UI was tested.
+
 ## Authorized connection setup - 15 November 2026
 
 - `local/certs/profile.json`: profile forever-single-leaf-v1, CA thumbprint A89AECD5DAC82543DAB4911F1D9CA5F038D112FB. CA RSA-4096, leaf RSA-3072, SHA-256 signatures. Leaf expires 2031-11-15T21:30:04Z; CA expires 2031-12-15T21:30:04Z.
@@ -50,7 +58,7 @@ After discussing alternatives, the user explicitly authorized a new hostname-res
 - VS 2022/MSVC 19.43, CMake 3.30.5, Ninja; MySQL 8.4.7 portable; Boost 1.92.0 static-md; OpenSSL 3.6.5 shared x64-windows; vcpkg baseline 8f363bdc11359ede4bc51e5eb32a2617538049c8.
 - Shared OpenSSL is essential: static libcrypto collided with bundled CascLib AES symbols in extractor linking. All targets and quest tests subsequently passed.
 - Build.ps1 uses a reversible short drive alias to avoid Windows command-line length limits. W: was removed and runtime restart was verified without it. SourceDirectory, MySQLExecutable and BuildDirectory use full F: paths in configs.
-- **The local server is running for client connection testing; the Forever launcher and game are open.** No Windows services, boot startup, firewall exceptions or router forwarding were installed. Runtime listeners were verified as only 127.0.0.1:3317 (MySQL), 7878 (SOAP), 8085 (world), 1119 and 8081 (login). MySQL X protocol is disabled. RA is off.
+- **All server processes are stopped cleanly after the user's launcher-Stop request and integration fix.** No Windows services, boot startup, firewall exceptions or router forwarding were installed. Runtime listeners were verified as only 127.0.0.1:3317 (MySQL), 7878 (SOAP), 8085 (world), 1119 and 8081 (login). MySQL X protocol is disabled. RA is off.
 
 ## Verified results
 
