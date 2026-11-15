@@ -1,0 +1,39 @@
+[worldserver]
+# Copy to server/worldserver.conf.d/zzzz-aleksanderG.conf. Contains no secrets.
+QuestDrops.GuaranteeOrdinaryCollection = 1
+Playerbot.Enable = 1
+Playerbot.World.Enable = 1
+Bots.Reserve = 200
+Bots.ActiveCap = 60
+Bots.PerZone = 15-25
+Bots.InCity = 30
+Bots.DayRhythm = 0
+Playerbot.ChatModel.Enable = 0
+Playerbot.Cast.Enable = 0
+Playerbot.Behavior.RaidGear = 0
+Playerbot.Gear.RaidEnchants = 0
+Playerbot.Gear.Owned.MatchOwner = 1
+Playerbot.Gear.Owned.OwnerSlack = 0
+Playerbot.OwnedGear.AllowedModes = "match"
+Playerbot.World.Gear.EpicPercent = 0
+Playerbot.Raid.ResistGear = 0
+Playerbot.Raid.OnyxiaCloak = 0
+Instance.IgnoreRaid = 0
+Instance.IgnoreAttunement = 0
+Instance.AhnQirajGatesOpen = 0
+Instance.MoltenCoreSkipRunes = 0
+Instance.MoltenCoreRagnarosReady = 0
+AuctionHouseBot.Seller.Enabled = 1
+AuctionHouseBot.Buyer.Enabled = 1
+AuctionHouseBot.Buyer.Alliance.Enabled = 1
+AuctionHouseBot.Buyer.Horde.Enabled = 1
+AuctionHouseBot.Buyer.Neutral.Enabled = 1
+AuctionHouseBot.Sellers.Count = 3
+AuctionHouseBot.Items.Amount.White = 400
+AuctionHouseBot.Items.Amount.Green = 300
+AuctionHouseBot.Items.Amount.Blue = 100
+AuctionHouseBot.Items.Amount.Purple = 0
+AuctionHouseBot.Vanilla.MaxItemLevel = 65
+AuctionHouseBot.Vanilla.MaxReqLevel = 60
+AuctionHouseBot.ItemsPerCycle.Normal = 20
+# Core Rate.* settings stay at 1; optional raid shortcuts stay off.
