@@ -192,8 +192,12 @@ Edit `server\worldserver.conf.d\zzzz-aleksanderG.conf` and restart. It loads aft
 The machine is a Ryzen 7 7800X3D with about 32 GB RAM. Initial roaming settings: reserve 200, active cap 60,
 15–25 per occupied levelling zone and 30 in an occupied city. No local language-model service is enabled.
 
-Companions, proximity-spawned roaming bots and the auction-house bot are **enabled**. LLM chat, automatic BG
-joining/seeding, cast-speed overrides and instant dungeon travel are disabled. `playerbot.conf` contains an earlier
+Companions, proximity-spawned roaming bots and the auction-house bot are **enabled**. On 16 November the user also
+enabled automatic battleground queueing (`Playerbot.Bg.AutoJoin = 1`), one automatically seeded bot-only BG at a time
+(`Playerbot.Bg.AutoSeed.Matches = 1`), and instant dungeon travel (`Playerbot.Lfg.Finder.Enable = 1`). Automatic arena
+seeding remains off. Existing ambient BG defaults remain: 3% roll per eligible bot/minute, up to 24 queued, two additions
+per tick, minimum level 10. BG match rosters are separate from the roaming cap and can add active bots.
+LLM chat and cast-speed overrides remain disabled. `playerbot.conf` contains an earlier
 `Playerbot.World.Enable = 0`, but the personal override below sets it to 1. Read effective settings, not one file alone:
 the core loads worldserver.conf first, then .conf files under worldserver.conf.d in alphabetical order, with later values
 winning. Put personal choices in `server/worldserver.conf.d/zzzz-aleksanderG.conf` so upstream presets do not override them.
@@ -207,9 +211,19 @@ Kill/quest/exploration XP and ordinary loot/gold rates are 1. **Rate.XP.DungeonK
 for extra XP in five-player dungeons on top of the normal kill calculation; it does not apply to raids. Earlier blanket
 statements that all XP rates were 1 were incomplete. Set this key to 1 if choosing the older vanilla dungeon XP behavior;
 no such gameplay change has been made merely to document this distinction.
-Extra bot groups in Group Finder are limited to two listings / ten bots. The instant `.bot dungeon` teleporter is off
-initially: form a party with the addon or `.bot lfg <your role>`, explore/travel to the entrance, and take the bots with you.
-`Playerbot.Lfg.Finder.Enable = 1` restores that optional convenience if you later choose it.
+Extra bot groups in Group Finder are limited to two listings / ten bots. The user-enabled `.bot dungeon` finder can form
+a party and transport it to a suitable dungeon: `.bot dungeon` lists choices, `.bot dungeon <word> [tank|healer|dps]`
+queues, and `.bot dungeon leave` returns you. Normal eligibility and entry restrictions still apply; this does not grant
+levels or bypass attunements. These newly enabled BG/dungeon features still need real gameplay validation.
+
+`Classic.ForeverCreatureHealth = 0` and `Classic.ForeverKillXp = 0` are unchanged. The health option uses the fitted
+`creature_classic_classlevelstats.health_forever` curve for mapped vanilla creatures, falling back to vanilla health if
+no Forever value exists. It is not a uniform multiplier or an exact sniff for every individual creature. Installed base
+health examples at level 60: class 1 is 3052 -> 4365 (+43%); class 8 is 2136 -> 4365 (+104%), before individual creature
+multipliers. The XP option changes only below-player-level kills to use the mob's base XP rather than the player's:
+player 10/mob 8 gives 61 rather than 68 base XP; equal/higher and gray-level behavior is unchanged. Upstream attributes
+this formula to another project's sniff analysis and explicitly marks it as not independently verified. Both are
+optional balance changes, not general compatibility fixes, and were not enabled by the BG/dungeon request.
 
 `QuestDrops.GuaranteeOrdinaryCollection = 1` enables the small source customization; set 0 and restart to disable.
 Its default in the public config template is **off**. It changes no SQL rows and survives normal DB updates.

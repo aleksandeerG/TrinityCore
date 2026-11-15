@@ -5,8 +5,12 @@ Playerbot.Enable = 1
 Playerbot.World.Enable = 1
 Playerbot.Lfg.BotGroups.Max = 2
 Playerbot.Lfg.BotGroups.MaxBots = 10
-# Travel to dungeon entrances normally; automatic party fill remains available.
-Playerbot.Lfg.Finder.Enable = 0
+# User-enabled dungeon party finder and travel; normal level restrictions still apply.
+Playerbot.Lfg.Finder.Enable = 1
+# Ambient battleground queues and one background bot-only match; arenas remain opt-in.
+Playerbot.Bg.AutoJoin = 1
+Playerbot.Bg.AutoSeed.Matches = 1
+Playerbot.Bg.AutoSeed.Arena = 0
 Bots.Reserve = 200
 Bots.ActiveCap = 60
 Bots.PerZone = 15-25
