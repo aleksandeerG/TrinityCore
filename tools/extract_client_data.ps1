@@ -63,6 +63,24 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$OutputPath = [IO.Path]::GetFullPath($OutputPath)
+
+# Native programs can write warnings to stderr and still succeed. Windows PowerShell 5.1 turns
+# redirected stderr into ErrorRecords; use the actual exit code and keep the diagnostics visible.
+function Clear-ExtractionIntermediates {
+    foreach ($name in 'Buildings', 'dir_bin') {
+        $target = [IO.Path]::GetFullPath((Join-Path $OutputPath $name))
+        if (-not $target.StartsWith($OutputPath.TrimEnd('\') + '\', [StringComparison]::OrdinalIgnoreCase)) {
+            throw 'Intermediate extraction path escaped OutputPath.'
+        }
+        if (Test-Path -LiteralPath $target) {
+            if ((Get-Item -LiteralPath $target -Force).Attributes -band [IO.FileAttributes]::ReparsePoint) {
+                throw "Refusing to clean a linked extraction directory: $target"
+            }
+            Remove-Item -LiteralPath $target -Recurse -Force
+        }
+    }
+}
 
 function Write-Step($msg) {
     Write-Host ""
@@ -189,7 +207,9 @@ try {
     if (Test-Done 'maps') { Write-Host "Already done (resuming)." }
     else {
         $eFlag = if ($MapsOnly) { "3" } else { "15" }
-        & ".\mapextractor.exe" -i "$ClientPath" -o "$OutputPath" -e $eFlag -f 1 -l $Locale @productArgs
+        $nativePreference = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+        & ".\mapextractor.exe" -i "$ClientPath" -o "$OutputPath" -e $eFlag -f 1 -l $Locale @productArgs 2>&1 | ForEach-Object { "$_" }
+        $ErrorActionPreference = $nativePreference
         if ($LASTEXITCODE -eq 2) {
             Fail "mapextractor could not read some map tiles of Eastern Kingdoms / Kalimdor from the game client (exit code 2).
 The game is not completely downloaded or is damaged: let Battle.net finish downloading it, run its Scan and Repair, then run this again."
@@ -222,18 +242,22 @@ Check stdout above; usual culprits: CASC init failure, wrong client path, antivi
     Write-Step "Step 2/4: vmap4extractor (CASC -> Buildings/)"
     if (Test-Done 'vmaps') { Write-Host "Already done (resuming)." }
     else {
-    if ($Resume) { foreach ($junk in 'Buildings', 'dir_bin') { Remove-Item (Join-Path $OutputPath $junk) -Recurse -Force -ErrorAction SilentlyContinue } }   # a half-finished earlier run
+    if ($Resume) { Clear-ExtractionIntermediates }   # a half-finished earlier run
     $vmapArgs = @("-d", "$ClientPath") + $productArgs
     if ($Threads -gt 0) { $vmapArgs += @("--threads", "$Threads") }
-    & ".\vmap4extractor.exe" @vmapArgs
+    $nativePreference = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+    & ".\vmap4extractor.exe" @vmapArgs 2>&1 | ForEach-Object { "$_" }
     $vmapExit = $LASTEXITCODE
+    $ErrorActionPreference = $nativePreference
     if ($vmapExit -ne 0 -and $Threads -ne 1) {
         # A crash with all cores (seen on a many-core VPS: 0xC0000005) is retried once on one thread, which also needs the least memory.
         # The first exit code stays in the log so the crash itself can be looked into.
         Write-Warning ("vmap4extractor stopped with exit code $vmapExit ({0}). Trying again on one thread (slower)..." -f ('0x{0:X8}' -f $vmapExit))
-        foreach ($junk in 'Buildings', 'dir_bin') { Remove-Item (Join-Path $OutputPath $junk) -Recurse -Force -ErrorAction SilentlyContinue }
-        & ".\vmap4extractor.exe" (@("-d", "$ClientPath") + $productArgs + @("--threads", "1"))
+        Clear-ExtractionIntermediates
+        $nativePreference = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+        & ".\vmap4extractor.exe" (@("-d", "$ClientPath") + $productArgs + @("--threads", "1")) 2>&1 | ForEach-Object { "$_" }
         $vmapExit = $LASTEXITCODE
+        $ErrorActionPreference = $nativePreference
     }
     if ($vmapExit -ne 0) {
         Fail "vmap4extractor failed with exit code $vmapExit ($('0x{0:X8}' -f $vmapExit)).
@@ -245,7 +269,9 @@ If the game shows an update in the Battle.net app, let it finish first; with a g
     Write-Step "Step 3/4: vmap4assembler (Buildings/ -> vmaps/)"
     $asmArgs = @("Buildings", "vmaps")
     if ($Threads -gt 0) { $asmArgs += @("--threads", "$Threads") }
-    & ".\vmap4assembler.exe" @asmArgs
+    $nativePreference = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+    & ".\vmap4assembler.exe" @asmArgs 2>&1 | ForEach-Object { "$_" }
+    $ErrorActionPreference = $nativePreference
     if ($LASTEXITCODE -ne 0) {
         Fail "vmap4assembler failed with exit code $LASTEXITCODE."
     }
@@ -259,13 +285,15 @@ If the game shows an update in the Battle.net app, let it finish first; with a g
 
     # --- Step 4: mmaps_generator -------------------------------------------
     Write-Step "Step 4/4: mmaps_generator (dbc+maps+vmaps -> mmaps/)"
-    $mmapArgs = @("--input", "$OutputPath", "--output", "$OutputPath", "--silent")
+    # Start-Process joins ArgumentList without quoting; keep spaces in the two paths intact.
+    $mmapArgs = @("--input", "`"$OutputPath`"", "--output", "`"$OutputPath`"", "--silent")
     if ($Threads -gt 0) { $mmapArgs += @("--threads", "$Threads") }
     # run it as a process so the progress can be shown: one line per minute with the number of maps finished so far
     $expect = @{}
     foreach ($f in Get-ChildItem (Join-Path $OutputPath 'maps') -Filter '*.tilelist' -ErrorAction SilentlyContinue) { if ($f.Name -match '^(\d{4})') { $expect[[int]$Matches[1]] = 1 } }
     foreach ($d in Get-ChildItem (Join-Path $OutputPath 'vmaps') -Directory -ErrorAction SilentlyContinue) { if ($d.Name -match '^\d+$') { $expect[[int]$d.Name] = 1 } }
-    $gen = Start-Process (Join-Path (Get-Location).Path 'mmaps_generator.exe') -ArgumentList $mmapArgs -WorkingDirectory (Get-Location).Path -NoNewWindow -PassThru
+    $gen = Start-Process (Join-Path (Get-Location).Path 'mmaps_generator.exe') -ArgumentList $mmapArgs -WorkingDirectory (Get-Location).Path -WindowStyle Hidden -PassThru `
+        -RedirectStandardOutput (Join-Path $OutputPath 'mmaps-generation.log') -RedirectStandardError (Join-Path $OutputPath 'mmaps-generation-errors.log')
     $null = $gen.Handle   # Windows PowerShell 5.1 leaves ExitCode empty unless the process handle is read right after the start
     while (-not $gen.WaitForExit(60000)) {
         $done = @(Get-ChildItem (Join-Path $OutputPath 'mmaps') -Filter '*.mmap' -ErrorAction SilentlyContinue).Count
@@ -286,7 +314,9 @@ Check that dbc/, maps/, and vmaps/0000/*.vmtree exist in OutputPath."
         Write-Host "Building the navigation mesh of map $id on its own..."
         $one = @("--input", "$OutputPath", "--output", "$OutputPath", "--silent", "$id")
         if ($Threads -gt 0) { $one += @("--threads", "$Threads") }
-        & ".\mmaps_generator.exe" @one
+        $nativePreference = $ErrorActionPreference; $ErrorActionPreference = 'Continue'
+        & ".\mmaps_generator.exe" @one 2>&1 | ForEach-Object { "$_" }
+        $ErrorActionPreference = $nativePreference
     }
     $still = @($missing | Where-Object { -not (Test-Path (Join-Path $OutputPath ('mmaps\{0:D4}.mmap' -f $_))) })
     $have = @(Get-ChildItem (Join-Path $OutputPath 'mmaps') -Filter '*.mmap' -ErrorAction SilentlyContinue).Count
@@ -294,7 +324,7 @@ Check that dbc/, maps/, and vmaps/0000/*.vmtree exist in OutputPath."
     if ($still.Count) { Write-Warning ("No navigation mesh could be built for map(s): " + ($still -join ', ') + ". Usually these maps have no ground to walk on.") }
     if ($have -lt 1) { Fail "No navigation meshes were produced (mmaps/ is empty)." }
     Set-Done 'mmaps'
-    if ($Resume) { foreach ($junk in 'Buildings', 'dir_bin') { Remove-Item (Join-Path $OutputPath $junk) -Recurse -Force -ErrorAction SilentlyContinue } }
+    if ($Resume) { Clear-ExtractionIntermediates }
 
     Show-DirSummary $OutputPath @("dbc", "maps", "Cameras", "gt", "vmaps", "mmaps", "Buildings")
     Write-Host ""
