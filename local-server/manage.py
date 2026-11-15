@@ -74,6 +74,13 @@ def wait_exit(name, timeout=180):
 def start(world_only=False):
     if not world_only and not (LOCAL / "certs/chain.pem").exists():
         raise RuntimeError("Run Certificates.ps1 first.")
+    if not world_only:
+        try:
+            portal = socket.gethostbyname("trinity.actual.battle.net")
+        except OSError:
+            portal = None
+        if portal != "127.0.0.1":
+            raise RuntimeError("The local portal mapping is pending. Resolve the connection preference first; start-world is available for independent diagnostics.")
     if not port_open(3317):
         subprocess.Popen([str(MYSQL / "bin/mysqld.exe"), f"--defaults-file={LOCAL / 'my.ini'}"], creationflags=HIDDEN,
                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -134,6 +141,8 @@ def backup():
         shutil.copy2(SERVER / "build-manifest.json", dest / "build-manifest.json")
     else:
         raise RuntimeError("No installed build manifest; a recoverable backup requires matching binaries and source revision.")
+    if (SERVER / "data-manifest.json").exists():
+        shutil.copy2(SERVER / "data-manifest.json", dest / "data-manifest.json")
     commit = subprocess.check_output(["git", "-C", str(SOURCE), "rev-parse", "HEAD"], text=True).strip()
     (dest / "checkout-commit.txt").write_text(commit)
     counts = mysql("SELECT table_schema,COUNT(*) FROM information_schema.tables WHERE table_schema IN ("
@@ -163,6 +172,12 @@ def restore(path, confirmed):
         digest = hashlib.file_digest(stream, "sha256").hexdigest()
     if digest != (path / "databases.sha256").read_text().strip():
         raise RuntimeError("Backup checksum failed.")
+    if (path / "data-manifest.json").exists():
+        saved_data = json.loads((path / "data-manifest.json").read_text(encoding="utf-8-sig"))
+        current_data_file = SERVER / "data-manifest.json"
+        current_data = json.loads(current_data_file.read_text(encoding="utf-8-sig")) if current_data_file.exists() else {}
+        if saved_data.get("clientVersion") != current_data.get("clientVersion"):
+            raise RuntimeError("Backup and current extracted client versions differ. Preserve/restore matching client data before database rollback.")
     # Prepare the matching migration source before replacing any database. Never reset the customization branch.
     manifest = json.loads((path / "build-manifest.json").read_text(encoding="utf-8-sig"))
     revision = manifest["commit"]

@@ -56,6 +56,8 @@ command-line length limit. It never replaces another mapping or moves files. Rem
 It runs `[QuestCollectionLoot]` regressions before installing. Stop the local server before installing another build.
 Use `-Fresh` only when deliberately replacing a broken/stale CMake configuration; normal rebuilds are incremental.
 `server\build-manifest.json` records the installed source commit. Never replace its executables with a repack update.
+Later script/documentation commits do not change the installed C++ revision; the backup records both the running manifest
+and current checkout commit. Runtime code customizations must be rebuilt before claiming they are active.
 
 Initial database release: [forever-tdb-2026-10-14](https://github.com/Karrz1/TrinityCore/releases/tag/forever-tdb-2026-10-14).
 Extract `TDB_full_world_forever_2026_10_14.sql` and `TDB_full_hotfixes_forever_2026_10_14.sql` into `server`.
@@ -205,6 +207,8 @@ configs and binaries together and creates a detached worktree at the backup's ru
 the matching migration files. It does not reset `aleksanderG` or discard later commits. Restoring is for this installation;
 it preserves the current MySQL root credential and restores the server user's password to match the backed-up configs.
 After recovery, reconcile the customization branch deliberately before the next update.
+Extracted assets are not duplicated in the database backup. `data-manifest.json` records their client version; restore
+refuses a mismatched version, so retain/re-extract matching data from your own compatible client before such a rollback.
 
 ## Verification and discovered limitations
 

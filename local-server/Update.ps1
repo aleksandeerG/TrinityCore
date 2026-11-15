@@ -6,7 +6,7 @@ $root = Split-Path $source -Parent
 function Git([string[]]$Arguments) {
     $old = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
-    $output = & git.exe -C $source @Arguments 2>&1
+    $output = & git.exe -C $source @Arguments 2>&1 | ForEach-Object { "$_" }
     $code = $LASTEXITCODE
     $ErrorActionPreference = $old
     if ($code) { throw "Git failed (code $code): $output" }
