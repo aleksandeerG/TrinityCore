@@ -36,15 +36,23 @@ def process_image(pid):
     kernel.OpenProcess.restype = wintypes.HANDLE
     kernel.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
     kernel.QueryFullProcessImageNameW.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR, ctypes.POINTER(wintypes.DWORD)]
+    kernel.GetExitCodeProcess.argtypes = [wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD)]
     kernel.CloseHandle.argtypes = [wintypes.HANDLE]
     handle = kernel.OpenProcess(0x1000, False, pid)
     if not handle:
         return None
     try:
+        status = wintypes.DWORD()
+        if kernel.GetExitCodeProcess(handle, ctypes.byref(status)) and status.value != 259: # STILL_ACTIVE
+            return None
         buffer = ctypes.create_unicode_buffer(32768)
         size = wintypes.DWORD(len(buffer))
         if not kernel.QueryFullProcessImageNameW(handle, 0, buffer, ctypes.byref(size)):
-            raise ctypes.WinError(ctypes.get_last_error())
+            error = ctypes.get_last_error()
+            # A graceful shutdown can finish between OpenProcess and the image query (WinError 31).
+            if kernel.GetExitCodeProcess(handle, ctypes.byref(status)) and status.value != 259:
+                return None
+            raise ctypes.WinError(error)
         return Path(buffer.value).resolve()
     finally:
         kernel.CloseHandle(handle)
@@ -71,6 +79,25 @@ def wait_exit(name, timeout=180):
         time.sleep(1)
 
 
+def start_database():
+    if not port_open(3317):
+        database_process = subprocess.Popen([str(MYSQL / "bin/mysqld.exe"), f"--defaults-file={LOCAL / 'my.ini'}"], creationflags=HIDDEN,
+                                            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        for _ in range(120):
+            if database_process.poll() is not None:
+                raise RuntimeError("MySQL stopped before becoming ready; inspect local/mysql-error.log.")
+            if port_open(3317):
+                try:
+                    mysql("SELECT 1;")
+                    break
+                except subprocess.CalledProcessError:
+                    pass
+            time.sleep(1)
+        else:
+            raise RuntimeError("MySQL did not become ready within two minutes; inspect local/mysql-error.log.")
+    mysql("SELECT 1;")
+
+
 def start(world_only=False):
     if not world_only and not (LOCAL / "certs/chain.pem").exists():
         raise RuntimeError("Run Certificates.ps1 first.")
@@ -81,14 +108,7 @@ def start(world_only=False):
             portal = None
         if portal != "127.0.0.1":
             raise RuntimeError("The local portal mapping is pending. Resolve the connection preference first; start-world is available for independent diagnostics.")
-    if not port_open(3317):
-        subprocess.Popen([str(MYSQL / "bin/mysqld.exe"), f"--defaults-file={LOCAL / 'my.ini'}"], creationflags=HIDDEN,
-                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        for _ in range(60):
-            if port_open(3317):
-                break
-            time.sleep(1)
-    mysql("SELECT 1;")
+    start_database()
     for name in (["worldserver"] if world_only else ["bnetserver", "worldserver"]):
         if running(name):
             continue
@@ -114,15 +134,27 @@ def stop_world():
 def stop():
     stop_world()
     if port_open(3317):
+        pid_file = LOCAL / "mysql.pid"
+        database_pid = int(pid_file.read_text().strip()) if pid_file.exists() else None
+        if database_pid:
+            image = process_image(database_pid)
+            if image and image != (MYSQL / "bin/mysqld.exe").resolve():
+                raise RuntimeError("MySQL PID belongs to another executable; refusing to stop it.")
         subprocess.run([str(MYSQL / "bin/mysqladmin.exe"), f"--defaults-extra-file={LOCAL / 'mysql-client.ini'}", "shutdown"],
                        check=True, creationflags=HIDDEN)
+        deadline = time.monotonic() + 180
+        # mysqladmin returns before InnoDB finishes releasing its files on Windows. Waiting only for
+        # the TCP listener can race the final flush and make the next start fail to open ibdata1.
+        while (database_pid and process_image(database_pid) is not None) or port_open(3317):
+            if time.monotonic() > deadline:
+                raise RuntimeError("MySQL has not finished its clean shutdown; refusing to force stop it.")
+            time.sleep(1)
     print("Server stopped cleanly.")
 
 
 def backup():
     stop_world()
-    if not port_open(3317):
-        raise RuntimeError("MySQL must be running for a logical backup. Start the server, then back up.")
+    start_database() # A stopped or broken game server must not block backup/rollback.
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     dest = ROOT / "backups" / stamp
     dest.mkdir(parents=True)

@@ -31,6 +31,7 @@ def main():
     common = {"LoginDatabaseInfo": connection("ff_auth"), "BindIP": '"127.0.0.1"', "LogsDir": quote(SERVER / "logs"),
               "Realm.AlsoAcceptBuilds": '"70938,70888,70862"',
               "MySQLExecutable": quote(ROOT / "dependencies/mysql/mysql-8.4.7-winx64/bin/mysql.exe"),
+              "BuildDirectory": quote(ROOT / "build"),
               "SourceDirectory": quote(SOURCE)}
     render(SOURCE / "src/server/worldserver/worldserver.conf.dist", SERVER / "worldserver.conf", {
         **common, "WorldDatabaseInfo": connection("ff_world"), "CharacterDatabaseInfo": connection("ff_characters"),

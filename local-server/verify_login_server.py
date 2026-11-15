@@ -34,12 +34,20 @@ def main():
             time.sleep(1)
         else:
             raise RuntimeError("Login server did not start within five minutes")
+        listeners = []
+        for line in subprocess.check_output(["netstat", "-ano", "-p", "tcp"], text=True, creationflags=HIDDEN).splitlines():
+            fields = line.split()
+            if len(fields) == 5 and fields[-1] == str(process.pid) and fields[3] == "LISTENING":
+                listeners.append(fields[1])
+        if not listeners or any(not address.startswith(("127.0.0.1:", "[::1]:")) for address in listeners):
+            raise RuntimeError(f"Login server listeners are not verified loopback-only: {listeners}")
         context = ssl.create_default_context(cafile=str(LOCAL / "certs/ca.pem"))
         with socket.create_connection(("127.0.0.1", 8081), timeout=15) as raw:
             with context.wrap_socket(raw, server_hostname="trinity.actual.battle.net") as connection:
                 certificate = connection.getpeercert()
                 result = {"loginStartup": True, "tlsVerified": True, "protocol": connection.version(),
                           "subjectAltName": certificate.get("subjectAltName"), "windowsTrustChanged": False,
+                          "listeners": listeners,
                           "hostsChanged": False, "realClientLoginTested": False}
         (LOCAL / "login-server-diagnostic.json").write_text(json.dumps(result, indent=2))
         print(json.dumps(result, indent=2))

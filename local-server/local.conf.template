@@ -3,6 +3,10 @@
 QuestDrops.GuaranteeOrdinaryCollection = 1
 Playerbot.Enable = 1
 Playerbot.World.Enable = 1
+Playerbot.Lfg.BotGroups.Max = 2
+Playerbot.Lfg.BotGroups.MaxBots = 10
+# Travel to dungeon entrances normally; automatic party fill remains available.
+Playerbot.Lfg.Finder.Enable = 0
 Bots.Reserve = 200
 Bots.ActiveCap = 60
 Bots.PerZone = 15-25
@@ -37,3 +41,6 @@ AuctionHouseBot.Vanilla.MaxItemLevel = 65
 AuctionHouseBot.Vanilla.MaxReqLevel = 60
 AuctionHouseBot.ItemsPerCycle.Normal = 20
 # Core Rate.* settings stay at 1; optional raid shortcuts stay off.
+# Keep the beta data diagnostics visible without unbounded disk growth.
+Appender.DBErrors = 2,2,0,DBErrors.log,w,16777216,3
+Appender.Playerbot = 2,3,1,Playerbot.log,w,16777216,3

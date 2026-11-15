@@ -39,8 +39,13 @@ if ($HostsOnly) {
 }
 if ($Undo) {
     $thumbFile = Join-Path $private 'ca-thumbprint.txt'
-    if (Test-Path -LiteralPath $thumbFile) {
-        $thumb = (Get-Content -LiteralPath $thumbFile -Raw).Trim()
+    $thumb = $null
+    if (Test-Path -LiteralPath $thumbFile) { $thumb = (Get-Content -LiteralPath $thumbFile -Raw).Trim() }
+    elseif (Test-Path -LiteralPath "$certs\ca.pem") {
+        $certificate = New-Object Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList "$certs\ca.pem"
+        $thumb = $certificate.Thumbprint
+    }
+    if ($thumb) {
         $certPath = "Cert:\CurrentUser\Root\$thumb"
         if (Test-Path -LiteralPath $certPath) { Remove-Item -LiteralPath $certPath }
         Write-Output "Removed this installation CA from CurrentUser Root: $thumb"
