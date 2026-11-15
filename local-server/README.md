@@ -102,8 +102,9 @@ The documented real-client connection requires:
 
 **The user authorized the one-leaf certificate design, and connection setup is installed.** The new CA is trusted
 only in the playing user's CurrentUser Root store. The single tagged localhost hosts entry is installed system-wide.
-Native Windows TLS 1.3 verified the normal login server and rejected an unrelated hostname. Real-client login and
-gameplay checks remain pending; these TLS checks do not prove game compatibility.
+Native Windows TLS 1.3 verified the normal login server and rejected an unrelated hostname. The user subsequently
+confirmed real-client world entry in Northshire Valley. Character and accepted-quest saving were verified in the DB;
+logout/reconnect, party, dungeon and collection-drop checks remain pending.
 
 Independent diagnostics are possible without those Windows changes: `python .\source\local-server\verify_login_server.py`
 uses a separate temporary login config and verifies TLS with an explicit CA file. `Server.ps1 start-world` starts only the
@@ -252,8 +253,9 @@ Do not mark these passed without evidence. Current results are in SESSION.md.
 
 As of 15 November 2026: the source build, 22 quest-policy assertions, migrations, extraction, native server commands,
 loopback listeners, TLS diagnostics, human/orc offline paths and an isolated backup restore passed. Normal game account
-creation and graceful stop/restart also passed. All services are stopped after verification. Real-client gameplay checks
-below remain pending; startup reaches ready state with the data warnings listed here.
+creation and graceful stop/restart also passed. The user is now playing a level-1 human warrior in Northshire Valley;
+real login/world entry and native saving of the character and quests passed. Services remain running for play.
+Reconnect, party, dungeon and collection-drop checks below remain pending; startup has the data warnings listed here.
 
 - Build, quest regression tests, all five DB migrations and clean startup; verify listeners are loopback only.
 - Real client: log in, create a character, enter the world, gain/loot something, log out and reconnect; confirm save state.

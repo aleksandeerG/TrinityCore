@@ -1,6 +1,6 @@
 ﻿# Continuation state - 15 November 2026
 
-The server setup and authorized one-leaf TLS/hosts connection setup are installed and verified. Observable real-client login and gameplay checks remain pending. Do not declare the entire original request complete.
+The server setup, authorized one-leaf TLS/hosts connection setup, real-client login, character creation/world entry and native saving are verified. Save/reconnect, companion-party, dungeon and collection-loot gameplay checks remain pending. Do not declare the entire original request complete.
 
 ## User intent and latest steering
 
@@ -19,8 +19,16 @@ After discussing alternatives, the user explicitly authorized a new hostname-res
 - Normal start exposed/fixed a missing socket import in manage.py (the earlier world-only path did not exercise it). Server start now validates the hardened TLS profile. Play also validates it. Backup excludes ca.key, and restore preserves the current one-leaf identity when restoring older database snapshots.
 - Full normal start and SOAP server-info checks passed after installing the connection setup. MySQL 3317, login 1119/8081, world 8085 and SOAP 7878 listeners were all verified as 127.0.0.1 only. New hosts bytes were verified to equal the saved original plus only the exact tagged append. The saved server key ACL grants only danal, SYSTEM and Administrators.
 - Trust undo remains Certificates.ps1 -Undo as danal; hosts undo is Certificates.ps1 -HostsOnly -Undo as Administrator. They are two separate commands. Host undo preserves unrelated bytes/edits.
-- The user requested help with the launcher/password. Launcher accessibility labels confirmed the selected server is "This PC (own server)", address 127.0.0.1, portal trinity.actual.battle.net, region group 8. Wow.exe is running. Show-Login.ps1 displays only the game account locally, masked by default, with explicit reveal/copy controls and no credential stdout/file copy. Hidden PowerShell startup also hid the initial dialog; it was brought into view, the duplicate helper was closed, and the helper now explicitly shows its form on Shown. No actual in-game login has been observed yet.
-- User then reached gameplay-ruleset selection, but Normal reported no realms. Found effective bnetserver.conf still had Realm.AlsoAcceptBuilds="" while worldserver.conf accepted 70938/70888/70862; configure.py had preserved the earlier default-empty file. Backed up bnet config privately, migrated only the accepted-build key, and restarted only login (world process preserved). Both now have the same accepted list. configure.py migrates that key in earlier preserved configs, and restore reapplies it. User retry is pending; character selection/world entry are not yet confirmed. The latest full backup predates this compatibility-key correction, but the current restore helper reapplies it.
+- The user requested help with the launcher/password. Launcher accessibility labels confirmed the selected server is "This PC (own server)", address 127.0.0.1, portal trinity.actual.battle.net, region group 8. Wow.exe is running. Show-Login.ps1 displays only the game account locally, masked by default, with explicit reveal/copy controls and no credential stdout/file copy. Hidden PowerShell startup also hid the initial dialog; it was brought into view, the duplicate helper was closed, and the helper now explicitly shows its form on Shown.
+- User then reached gameplay-ruleset selection, but Normal reported no realms. Found effective bnetserver.conf still had Realm.AlsoAcceptBuilds="" while worldserver.conf accepted 70938/70888/70862; configure.py had preserved the earlier default-empty file. Backed up bnet config privately, migrated only the accepted-build key, and restarted only login (world process preserved). Both now have the same accepted list. configure.py migrates that key in earlier preserved configs, and restore reapplies it. The user subsequently confirmed successful world entry. The latest full backup predates this compatibility-key correction, but the current restore helper reapplies it.
+
+## Real-client world entry and saving - confirmed 15 November 2026
+
+- User reported: "i am in game in northshire valley and got my first quest" after retrying Normal with the corrected login build list. This confirms real client login and world entry, not merely a diagnostic handshake.
+- Read-only DB checks confirmed playing account 2 (1#1) online, security level 0; new character GUID 316, level 1, human warrior, map 0/zone 12. No levels, gear, quests or teleport shortcuts were granted.
+- Ran native `saveall` without disconnecting the player; server replied "All players saved." Confirmed the character and quest rows 7/status 3 and 5261/status 1 in the character DB. Report: local/client-world-entry-verification.json (2026-11-15T21:55:48Z).
+- Native saving is verified; logout/reconnect persistence has not yet been confirmed. Party controls, dungeon gameplay and ordinary quest-item drops remain unverified. First Northshire kill quests do not constitute a collection-drop test.
+- Keep the game/server running while the user plays. Do not restart or back up in a way that disconnects them without coordinating a stopping point. The latest full backup predates this new real-player character; make a fresh backup at a coordinated stopping point.
 
 ## Repository and installed build
 
@@ -85,7 +93,7 @@ After discussing alternatives, the user explicitly authorized a new hostname-res
 
 1. Hostname/per-user trust setup is complete and authorized; no further approval is needed for that scope. Consult the section above before rotating certificates or restoring legacy backups.
 2. Start/check the full server and current checksum-verified WoWForeverLauncher.exe. See README/Play.ps1. Do not start Wow.exe directly or use Blizzard account credentials for the local realm.
-3. Verify actual login, character creation, entering the world, saving and reconnecting.
+3. Real-client login, character creation, world entry and native saving are confirmed. At a convenient stopping point, have the user log out and reconnect to confirm position/quests/inventory persist. Then coordinate a fresh backup including the new player character; the current backup command stops the world.
 4. Verify a tank/healer/DPS party, commands and an appropriate dungeon at a normal level. No player XP/gear boosts were used for setup.
 5. Verify collection quest 60 (Kobold Candles: 8 x item 772, William Pestle) or 83 (Red Linen Goods: 6 x item 1019, Sara Timberlain), no extra quest-only loot after need ends, unchanged unrelated loot, and group eligibility. These gameplay checks are **pending**, not passed.
 
