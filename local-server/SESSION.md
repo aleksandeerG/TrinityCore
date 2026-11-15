@@ -80,6 +80,9 @@ After discussing alternatives, the user explicitly authorized a new hostname-res
 
 ## Gameplay choices and known limitations
 
+- Configuration clarification after user asked about seeing bots: companions, roaming and AH bots are enabled as originally requested. LLM chat, automatic BG participation, cast-speed overrides and instant dungeon travel are off. Main config is followed by alphabetically sorted extra .conf files; zzzz-aleksanderG.conf wins over the earlier Playerbot.World.Enable=0 in playerbot.conf. No gameplay settings were changed in response to that question.
+- XP correction: kill/quest/exploration multipliers are 1, but Rate.XP.DungeonKill is 1.8 (upstream Forever default, five-player dungeons only, on top of the normal kill calculation). Earlier blanket statements that all player XP multipliers were 1 were incomplete. Retained this setting pending the user's preference; the docs/template comment now state it explicitly.
+
 - Local override: server/worldserver.conf.d/zzzz-aleksanderG.conf. Roaming cap 60, reserve configuration 200, 15-25 per occupied zone, 30 per city. Listed LFG groups capped at two / ten bots. No language-model service enabled.
 - Raid shortcuts and free raid gear/enchants are off. Player XP/drop multipliers are 1. AH targets 400 white / 300 green / 100 blue / 0 epic. Owned companion gear is generated level-appropriate gear, not a system where bots earn every piece from scratch.
 - Instant .bot dungeon teleporter is off to preserve travel/exploration; use the addon or .bot lfg <your role>, then travel to the dungeon entrance normally.

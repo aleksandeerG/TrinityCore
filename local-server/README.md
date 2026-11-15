@@ -191,10 +191,22 @@ this one key in existing configs. Restart the login server after changing it (it
 Edit `server\worldserver.conf.d\zzzz-aleksanderG.conf` and restart. It loads after upstream templates.
 The machine is a Ryzen 7 7800X3D with about 32 GB RAM. Initial roaming settings: reserve 200, active cap 60,
 15–25 per occupied levelling zone and 30 in an occupied city. No local language-model service is enabled.
+
+Companions, proximity-spawned roaming bots and the auction-house bot are **enabled**. LLM chat, automatic BG
+joining/seeding, cast-speed overrides and instant dungeon travel are disabled. `playerbot.conf` contains an earlier
+`Playerbot.World.Enable = 0`, but the personal override below sets it to 1. Read effective settings, not one file alone:
+the core loads worldserver.conf first, then .conf files under worldserver.conf.d in alphabetical order, with later values
+winning. Put personal choices in `server/worldserver.conf.d/zzzz-aleksanderG.conf` so upstream presets do not override them.
+Set `Playerbot.World.Enable = 0` there to disable roaming while retaining companions and the AH bot, or
+`Playerbot.Enable = 0` to disable the playerbot module (the separate auction bot has its own seller/buyer switches).
 The AH bot targets 400 white, 300 green and 100 blue items, zero epic items, with a level-60/item-level-65 ceiling.
 Players still pay for purchases and earn their gear. Raid shortcuts, faster casting and auto raid gear/enchants are off.
 Owned bots use only `match` gear mode. Upstream still generates level-appropriate companion gear; this is not a system
 where every companion starts naked and earns every item. Player XP, gold and drop-rate multipliers retain core defaults.
+Kill/quest/exploration XP and ordinary loot/gold rates are 1. **Rate.XP.DungeonKill is 1.8**, the upstream Forever default
+for extra XP in five-player dungeons on top of the normal kill calculation; it does not apply to raids. Earlier blanket
+statements that all XP rates were 1 were incomplete. Set this key to 1 if choosing the older vanilla dungeon XP behavior;
+no such gameplay change has been made merely to document this distinction.
 Extra bot groups in Group Finder are limited to two listings / ten bots. The instant `.bot dungeon` teleporter is off
 initially: form a party with the addon or `.bot lfg <your role>`, explore/travel to the entrance, and take the bots with you.
 `Playerbot.Lfg.Finder.Enable = 1` restores that optional convenience if you later choose it.

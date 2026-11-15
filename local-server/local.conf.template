@@ -40,7 +40,8 @@ AuctionHouseBot.Items.Amount.Purple = 0
 AuctionHouseBot.Vanilla.MaxItemLevel = 65
 AuctionHouseBot.Vanilla.MaxReqLevel = 60
 AuctionHouseBot.ItemsPerCycle.Normal = 20
-# Core Rate.* settings stay at 1; optional raid shortcuts stay off.
+# Kill/quest/drop rates retain defaults of 1. Dungeon-kill XP retains Forever's default 1.8.
+# Optional raid shortcuts stay off.
 # Keep the beta data diagnostics visible without unbounded disk growth.
 Appender.DBErrors = 2,2,0,DBErrors.log,w,16777216,3
 Appender.Playerbot = 2,3,1,Playerbot.log,w,16777216,3
