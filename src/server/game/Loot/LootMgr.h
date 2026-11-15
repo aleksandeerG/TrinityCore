@@ -130,7 +130,8 @@ class TC_GAME_API LootTemplate
         // Adds an entry to the group (at loading stage)
         void AddEntry(LootStoreItem* item);
         // Rolls for every item in the template and adds the rolled items the the loot
-        void Process(Loot& loot, bool rate, uint16 lootMode, uint8 groupId, Player const* personalLooter = nullptr) const;
+        void Process(Loot& loot, bool rate, uint16 lootMode, uint8 groupId, Player const* personalLooter = nullptr,
+            Player const* collectionLooter = nullptr, bool collectionPersonal = false) const;
         void ProcessPersonalLoot(std::unordered_map<Player*, std::unique_ptr<Loot>>& personalLoot, bool rate, uint16 lootMode) const;
         void CopyConditions(LootItem* li) const;
 

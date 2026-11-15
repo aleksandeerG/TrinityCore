@@ -16,6 +16,7 @@
  */
 
 #include "Loot.h"
+#include "Config.h"
 #include "Creature.h"
 #include "DB2Stores.h"
 #include "DatabaseEnv.h"
@@ -946,7 +947,10 @@ bool Loot::FillLoot(uint32 lootId, LootStore const& store, Player* lootOwner, bo
             scarceMod = 1.0f + pct / 100.0f;
     SetClassicScarceMaterialChanceMod(scarceMod);
 
-    tab->Process(*this, store.IsRatesAllowed(), lootMode, 0);    // Processing is done there, callback via Loot::AddItem()
+    // Only direct creature corpse rows opt in. References, player corpses, gathering and containers retain their own rolls.
+    bool guaranteedCollection = &store == &LootTemplates_Creature && loot_type == LOOT_CORPSE && GetOwnerGUID().IsCreature()
+        && sConfigMgr->GetBoolDefault("QuestDrops.GuaranteeOrdinaryCollection", false, true);
+    tab->Process(*this, store.IsRatesAllowed(), lootMode, 0, nullptr, guaranteedCollection ? lootOwner : nullptr, personal);
 
     SetClassicScarceMaterialChanceMod(1.0f);
 

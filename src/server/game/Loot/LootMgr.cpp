@@ -19,6 +19,7 @@
 #include "Containers.h"
 #include "DB2Stores.h"
 #include "DatabaseEnv.h"
+#include "Group.h"
 #include "ItemBonusMgr.h"
 #include "ItemTemplate.h"
 #include "Log.h"
@@ -26,6 +27,7 @@
 #include "MapUtils.h"
 #include "ObjectMgr.h"
 #include "Player.h"
+#include "QuestCollectionLoot.h"
 #include "Random.h"
 #include "SpellInfo.h"
 #include "SpellMgr.h"
@@ -672,7 +674,8 @@ void LootTemplate::CopyConditions(LootItem* li) const
 }
 
 // Rolls for every item in the template and adds the rolled items the the loot
-void LootTemplate::Process(Loot& loot, bool rate, uint16 lootMode, uint8 groupId, Player const* personalLooter /*= nullptr*/) const
+void LootTemplate::Process(Loot& loot, bool rate, uint16 lootMode, uint8 groupId, Player const* personalLooter /*= nullptr*/,
+    Player const* collectionLooter /*= nullptr*/, bool collectionPersonal /*= false*/) const
 {
     if (groupId)                                            // Group reference uses own processing of the group
     {
@@ -692,7 +695,34 @@ void LootTemplate::Process(Loot& loot, bool rate, uint16 lootMode, uint8 groupId
         if (!(item->lootmode & lootMode))                       // Do not add if mode mismatch
             continue;
 
-        if (!item->Roll(rate))
+        bool guarantee = false;
+        if (collectionLooter && item->type == LootStoreItem::Type::Item)
+            if (ItemTemplate const* proto = sObjectMgr->GetItemTemplate(item->itemid); proto && QuestCollectionLoot::IsOrdinary(*item, *proto))
+            {
+                auto needsCollectionItem = [&item](Player const* player)
+                {
+                    if (!LootItem::AllowedForPlayer(player, *item, false))
+                        return false;
+                    // Use the core's pending-objective lookup: this retains sequence, raid and completion restrictions.
+                    if (QuestObjective const* objective = player->GetQuestObjectiveForItem(item->itemid, true))
+                        return player->GetQuestStatus(objective->QuestID) == QUEST_STATUS_INCOMPLETE
+                            && QuestCollectionLoot::IsRequiredItemObjective(*objective, item->itemid)
+                            && player->GetItemCount(item->itemid, true) < uint32(objective->Amount);
+                    return false;
+                };
+                guarantee = needsCollectionItem(collectionLooter);
+                if (!guarantee && !collectionPersonal)
+                    if (Group const* group = collectionLooter->GetGroup())
+                        for (GroupReference const& ref : group->GetMembers())
+                            if (Player const* member = ref.GetSource(); member && member->IsAtGroupRewardDistance(collectionLooter)
+                                && needsCollectionItem(member))
+                            {
+                                guarantee = true;
+                                break;
+                            }
+            }
+
+        if (!guarantee && !item->Roll(rate))
             continue;                                           // Bad luck for the entry
 
         switch (item->type)

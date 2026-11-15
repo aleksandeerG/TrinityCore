@@ -3,6 +3,12 @@
 ###############################################
 [worldserver]
 
+# Optional local customization: guarantee ordinary, direct, ungrouped quest-only creature corpse rows
+# for an eligible nearby player with an incomplete required item objective. Reference/group loot,
+# optional objectives, quest starters, equipment and special quest flags retain normal rolls.
+# Does not alter min/max quantities or conditions. Restart after changing.
+QuestDrops.GuaranteeOrdinaryCollection = 0
+
 ###################################################################################################
 # SECTION INDEX
 #
