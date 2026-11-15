@@ -8,6 +8,7 @@ import datetime
 import hashlib
 import json
 import shutil
+import socket
 import subprocess
 import time
 import urllib.request
@@ -101,6 +102,9 @@ def start_database():
 def start(world_only=False):
     if not world_only and not (LOCAL / "certs/chain.pem").exists():
         raise RuntimeError("Run Certificates.ps1 first.")
+    if not world_only and (LOCAL / "certs/profile.json").exists():
+        from certificates import validate
+        validate(LOCAL / "certs")
     if not world_only:
         try:
             portal = socket.gethostbyname("trinity.actual.battle.net")
@@ -158,7 +162,7 @@ def backup():
     stamp = datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
     dest = ROOT / "backups" / stamp
     dest.mkdir(parents=True)
-    shutil.copytree(LOCAL, dest / "local", ignore=shutil.ignore_patterns("mysql-data", "restore-check-*", "*.pid", "*.log"))
+    shutil.copytree(LOCAL, dest / "local", ignore=shutil.ignore_patterns("mysql-data", "restore-check-*", "*.pid", "*.log", "ca.key"))
     config = dest / "server"
     config.mkdir()
     for path in SERVER.glob("*.conf"):
@@ -200,6 +204,12 @@ def restore(path, confirmed):
     path = path.resolve(strict=True)
     if not (path / "COMPLETE").exists():
         raise RuntimeError("Backup has no COMPLETE marker.")
+    # Transport identity is independent of the character/database snapshot. Preserve the
+    # current one-leaf authority instead of reviving an old, retained CA key from a backup.
+    hardened_tls = (LOCAL / "certs/profile.json").exists()
+    if hardened_tls:
+        from certificates import validate
+        validate(LOCAL / "certs")
     with (path / "databases.sql").open("rb") as stream:
         digest = hashlib.file_digest(stream, "sha256").hexdigest()
     if digest != (path / "databases.sha256").read_text().strip():
@@ -237,7 +247,10 @@ def restore(path, confirmed):
     # The instance's root credential is not part of the five application schemas and must remain current.
     old["mysql_root"] = current["mysql_root"]
     (LOCAL / "secrets.json").write_text(json.dumps(old, indent=2))
-    shutil.copytree(path / "local/certs", LOCAL / "certs", dirs_exist_ok=True)
+    if hardened_tls:
+        print("Preserved the current one-leaf TLS identity; legacy backup CA keys were not restored.")
+    else:
+        shutil.copytree(path / "local/certs", LOCAL / "certs", dirs_exist_ok=True)
     if (path / "build-manifest.json").exists():
         shutil.copy2(path / "build-manifest.json", SERVER / "build-manifest.json")
     for name in ["worldserver.conf", "bnetserver.conf"]:

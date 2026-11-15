@@ -17,6 +17,8 @@ else {
     $thumb = $certificate.Thumbprint
 }
 if (!(Test-Path -LiteralPath "Cert:\CurrentUser\Root\$thumb")) { throw 'This Windows account does not trust the local login CA.' }
+& python "$PSScriptRoot\certificates.py" --check
+if ($LASTEXITCODE) { throw 'The one-leaf TLS profile did not validate; client was not started.' }
 Write-Output 'In the launcher choose Join / a server you built yourself, address 127.0.0.1; select F:\Games\World of Warcraft.'
 Write-Output 'Use the credentials in local\secrets.json. Start the client with the launcher each time.'
 Start-Process -FilePath $launcher -WorkingDirectory $root

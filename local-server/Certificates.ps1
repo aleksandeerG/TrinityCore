@@ -1,18 +1,22 @@
 [CmdletBinding()]
-param([switch]$HostsOnly, [switch]$Undo)
+param([switch]$HostsOnly, [switch]$Undo, [switch]$GenerateOnly, [switch]$Rotate)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $private = Join-Path $root 'local'
 $certs = Join-Path $private 'certs'
 $hostsFile = Join-Path $env:SystemRoot 'System32\drivers\etc\hosts'
 $marker = '127.0.0.1 trinity.actual.battle.net # forever-aleksanderG-local'
+if (($GenerateOnly -or $Rotate) -and ($HostsOnly -or $Undo)) { throw 'Generation/rotation cannot be combined with hosts-only or undo.' }
 if ($HostsOnly) {
     $original = if (Test-Path -LiteralPath $hostsFile) { [IO.File]::ReadAllBytes($hostsFile) } else { [byte[]]@() }
-    $content = [Text.Encoding]::UTF8.GetString($original)
+    # Latin-1 gives a reversible byte mapping, including existing non-UTF8 comments/BOMs.
+    $hostsEncoding = [Text.Encoding]::GetEncoding(28591)
+    $content = $hostsEncoding.GetString($original)
     if ($Undo) {
         # Remove only our exact line; preserve changes made by other software after setup.
-        $lines = @($content -split "`r?`n" | Where-Object { $_ -ne $marker })
-        [IO.File]::WriteAllText($hostsFile, ($lines -join "`r`n"), (New-Object Text.UTF8Encoding($false)))
+        $escaped = [regex]::Escape($marker)
+        $updated = [regex]::Replace($content, "(?m)^$escaped`r?`n|^$escaped$", '')
+        if ($updated -ne $content) { [IO.File]::WriteAllBytes($hostsFile, $hostsEncoding.GetBytes($updated)) }
         Write-Output 'Removed this installation hosts entry only.'
         return
     }
@@ -52,7 +56,20 @@ if ($Undo) {
     }
     return
 }
-New-Item -ItemType Directory -Path $certs -Force | Out-Null
+if ($Rotate) {
+    if (Get-Process bnetserver -ErrorAction SilentlyContinue) { throw 'Stop the login server before rotating certificates.' }
+    if (Test-Path -LiteralPath "$certs\ca.pem") {
+        $previous = New-Object Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList "$certs\ca.pem"
+        if ((Test-Path -LiteralPath "Cert:\CurrentUser\Root\$($previous.Thumbprint)") -or
+            (Test-Path -LiteralPath "Cert:\LocalMachine\Root\$($previous.Thumbprint)")) {
+            throw 'Remove trust for the previous CA before rotating; -Undo removes this installation CurrentUser trust.'
+        }
+    }
+}
+$arguments = @("$PSScriptRoot\certificates.py")
+if ($Rotate) { $arguments += '--rotate' }
+& python @arguments
+if ($LASTEXITCODE) { throw 'Certificate generation/profile validation failed; no trust was added.' }
 $openssl = 'C:\Program Files\Git\usr\bin\openssl.exe'
 function OpenSsl([string[]]$Arguments) {
     $old = $ErrorActionPreference
@@ -64,41 +81,14 @@ function OpenSsl([string[]]$Arguments) {
 }
 Push-Location $certs
 try {
-    if (!(Test-Path -LiteralPath '.\chain.pem')) {
-        @"
-[req]
-distinguished_name=dn
-x509_extensions=ca
-prompt=no
-[dn]
-CN=Forever aleksanderG Local CA $env:COMPUTERNAME
-[ca]
-basicConstraints=critical,CA:TRUE,pathlen:0
-keyUsage=critical,keyCertSign,cRLSign
-subjectKeyIdentifier=hash
-nameConstraints=critical,permitted;DNS:actual.battle.net
-"@ | Set-Content -LiteralPath '.\ca.cnf' -Encoding ASCII
-        @'
-[req]
-distinguished_name=dn
-prompt=no
-[dn]
-CN=trinity.actual.battle.net
-'@ | Set-Content -LiteralPath '.\server.cnf' -Encoding ASCII
-        @'
-basicConstraints=critical,CA:FALSE
-keyUsage=critical,digitalSignature,keyEncipherment
-subjectAltName=DNS:trinity.actual.battle.net
-extendedKeyUsage=serverAuth
-authorityKeyIdentifier=keyid:always
-'@ | Set-Content -LiteralPath '.\leaf.ext' -Encoding ASCII
-        OpenSsl @('req','-x509','-newkey','rsa:3072','-nodes','-keyout','ca.key','-out','ca.pem','-days','825','-config','ca.cnf')
-        OpenSsl @('req','-new','-newkey','rsa:2048','-nodes','-keyout','server.key','-out','server.csr','-config','server.cnf')
-        OpenSsl @('x509','-req','-in','server.csr','-CA','ca.pem','-CAkey','ca.key','-CAcreateserial','-out','server.pem','-days','365','-extfile','leaf.ext')
-        (Get-Content -LiteralPath '.\server.pem','.\ca.pem') | Set-Content -LiteralPath '.\chain.pem' -Encoding ASCII
+    OpenSsl @('verify','-CAfile','ca.pem','-purpose','sslserver','-verify_hostname','trinity.actual.battle.net','server.pem')
+    if ($GenerateOnly) { Write-Output 'Verified one-leaf certificates. Windows trust and hosts were not changed.'; return }
+    $certificate = New-Object Security.Cryptography.X509Certificates.X509Certificate2 -ArgumentList "$certs\ca.pem"
+    $storePath = "Cert:\CurrentUser\Root\$($certificate.Thumbprint)"
+    $imported = if (Test-Path -LiteralPath $storePath) { Get-Item -LiteralPath $storePath } else {
+        Import-Certificate -FilePath "$certs\ca.pem" -CertStoreLocation Cert:\CurrentUser\Root
     }
-    OpenSsl @('verify','-CAfile','ca.pem','-verify_hostname','trinity.actual.battle.net','server.pem')
-    $imported = Import-Certificate -FilePath "$certs\ca.pem" -CertStoreLocation Cert:\CurrentUser\Root
+    if (!(Test-Path -LiteralPath $storePath)) { throw 'Certificate trust was not installed; the Windows prompt may have been canceled.' }
     $imported.Thumbprint | Set-Content -LiteralPath (Join-Path $private 'ca-thumbprint.txt') -Encoding ASCII
-    Write-Output "Trusted this installation name-constrained CA in CurrentUser Root: $($imported.Thumbprint)"
+    Write-Output "Trusted one-leaf CA in CurrentUser Root: $($imported.Thumbprint). No CA signing key is retained."
 } finally { Pop-Location }

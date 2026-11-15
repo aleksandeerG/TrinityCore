@@ -1,12 +1,24 @@
 ﻿# Continuation state - 15 November 2026
 
-The independent server setup and verification are finished. Real-client connection is pending the user's choice about hostname/certificate setup. Do not declare the entire original request complete.
+The server setup and authorized one-leaf TLS/hosts connection setup are installed and verified. Observable real-client login and gameplay checks remain pending. Do not declare the entire original request complete.
 
 ## User intent and latest steering
 
 User requested a locally hosted real WoW Forever server with optional companion, roaming and auction bots, normal progression, a narrowly scoped collection-drop guarantee, a maintained GitHub fork, and safe manual update/backup/rollback commands. No official-server automation, global loot/XP boosts, automatic BiS gear, router exposure or boot startup.
 
-The user confirmed the client installation finished, then asked why the hosts/certificate changes were needed and whether another way exists. Both Windows prompts were canceled. **No approval to retry the prompts has been given.** Explained manual setup and an isolated Windows client VM as alternatives; a server-only VM does not remove client-side requirements. No documented method avoiding both requirements with the real unmodified client was found. Keep hosts/trust changes pending until their preference is resolved. Do not bypass TLS verification.
+After discussing alternatives, the user explicitly authorized a new hostname-restricted CA, one longer-lived server certificate, destruction of the signing key, per-user trust and the hosts entry ("let's do this"). Applied the agreed five-year design: the NEW CA signing key was generated only in memory and never serialized; exactly one leaf was issued. No VM/sandbox or separate gaming account was created. Do not bypass TLS verification.
+
+## Authorized connection setup - 15 November 2026
+
+- `local/certs/profile.json`: profile forever-single-leaf-v1, CA thumbprint A89AECD5DAC82543DAB4911F1D9CA5F038D112FB. CA RSA-4096, leaf RSA-3072, SHA-256 signatures. Leaf expires 2031-11-15T21:30:04Z; CA expires 2031-12-15T21:30:04Z.
+- CA critical DNS constraints permit trinity.actual.battle.net and exclude its descendants (.trinity.actual.battle.net), path length zero, server-authentication EKU only. Leaf SAN contains only the exact hostname, CA=false, server-authentication only. Root constraint enforcement varies by verifier; do not promise universal hostname scoping across applications.
+- The new signing key was never written/exported, and its generation process exited. Only the server private key remains on disk. This does not guarantee absence from OS memory/pagefile/crash-dump traces. Removed the old, untrusted live certificate files including ca.key. Older private backups still contain that OLD, untrusted CA/key; do not claim those copies were securely erased.
+- New CA trusted only under danal CurrentUser Root, not LocalMachine Root. Exactly one tagged 127.0.0.1 trinity.actual.battle.net hosts line added with UAC; previous bytes are in local/hosts-before-forever.bin.
+- OpenSSL security tests passed: exact DNS accepted; subdomain and unrelated-domain leaves rejected by constraints; wrong hostname and wrong TLS purpose rejected; no CA key output; profile tampering rejected.
+- Compiled bnetserver passed explicit-CA TLS 1.3 diagnostic. Normal configuration then passed native Windows SslStream TLS 1.3 with no validation callback; unrelated hostname rejected. Report: local/windows-tls-verification.json. Login listeners stayed on loopback.
+- Normal start exposed/fixed a missing socket import in manage.py (the earlier world-only path did not exercise it). Server start now validates the hardened TLS profile. Play also validates it. Backup excludes ca.key, and restore preserves the current one-leaf identity when restoring older database snapshots.
+- Full normal start and SOAP server-info checks passed after installing the connection setup. MySQL 3317, login 1119/8081, world 8085 and SOAP 7878 listeners were all verified as 127.0.0.1 only. New hosts bytes were verified to equal the saved original plus only the exact tagged append. The saved server key ACL grants only danal, SYSTEM and Administrators.
+- Trust undo remains Certificates.ps1 -Undo as danal; hosts undo is Certificates.ps1 -HostsOnly -Undo as Administrator. They are two separate commands. Host undo preserves unrelated bytes/edits.
 
 ## Repository and installed build
 
@@ -66,10 +78,10 @@ The user confirmed the client installation finished, then asked why the hosts/ce
 - Battleground border-tile preload warnings and some unknown spell diagnostics (e.g. 73523/91404 during bot preparation) remain for live validation. Do not infer that every class/raid/BG works from a supported client build.
 - Source scripts explicitly mark inferred Dalaran/Drowned City mechanics; Excavation Site has only partial custom boss scripting. Other documented bot gaps are in README/BOT_COMMANDS.md.
 
-## Remaining work - requires user decision and observable real client
+## Remaining work - requires observable real client
 
-1. Resolve preferred connection setup. Certificate and key exist in local/certs, but trust import and hosts entry are NOT applied. Certificates.ps1 supports narrow CurrentUser trust and exactly one backed-up localhost hosts line, with separate undo commands. No permission to retry prompts has been given.
-2. After authorization, establish the selected scoped setup; start the full server and current checksum-verified WoWForeverLauncher.exe. See README/Play.ps1. Do not start Wow.exe directly or use Blizzard account credentials for the local realm.
+1. Hostname/per-user trust setup is complete and authorized; no further approval is needed for that scope. Consult the section above before rotating certificates or restoring legacy backups.
+2. Start/check the full server and current checksum-verified WoWForeverLauncher.exe. See README/Play.ps1. Do not start Wow.exe directly or use Blizzard account credentials for the local realm.
 3. Verify actual login, character creation, entering the world, saving and reconnecting.
 4. Verify a tank/healer/DPS party, commands and an appropriate dungeon at a normal level. No player XP/gear boosts were used for setup.
 5. Verify collection quest 60 (Kobold Candles: 8 x item 772, William Pestle) or 83 (Red Linen Goods: 6 x item 1019, Sara Timberlain), no extra quest-only loot after need ends, unchanged unrelated loot, and group eligibility. These gameplay checks are **pending**, not passed.

@@ -100,33 +100,53 @@ The documented real-client connection requires:
 3. The supported launcher each time; it installs the server public key into the running client, including the newer
    certificate-key mode. Running Wow.exe directly misses that step.
 
-**These connection changes are currently pending user approval.** The certificate was generated, but the trust
-and Windows administrator prompts were canceled. Do not repeat them without resolving the user's preference.
-There is no verified, documented way here to avoid both requirements with the unmodified real client. A separate
-Windows VM can isolate them; a server-only VM still leaves the client requirements on the main PC.
+**The user authorized the one-leaf certificate design, and connection setup is installed.** The new CA is trusted
+only in the playing user's CurrentUser Root store. The single tagged localhost hosts entry is installed system-wide.
+Native Windows TLS 1.3 verified the normal login server and rejected an unrelated hostname. Real-client login and
+gameplay checks remain pending; these TLS checks do not prove game compatibility.
 
 Independent diagnostics are possible without those Windows changes: `python .\source\local-server\verify_login_server.py`
 uses a separate temporary login config and verifies TLS with an explicit CA file. `Server.ps1 start-world` starts only the
 world server for database/startup/account checks once extraction is complete. These do not constitute real-client login.
-
-After the user chooses to proceed:
 
 For manual setup, the existing public CA file is `local\certs\ca.pem`: install it into the playing user's Trusted Root
 store and add the exact localhost hosts line as Administrator. The launcher helper also recognizes a manual installation.
 The commands below perform the same scoped setup and keep the recorded thumbprint/hosts backup for undo.
 
 ```powershell
-# Run as the Windows user who plays: generates/reuses a private name-constrained CA and trusts only CurrentUser Root.
+# Required for certificate generation/validation (already installed on this PC).
+python -m pip install -r .\source\local-server\requirements.txt
+# Run as the Windows user who plays: reuses the verified one-leaf profile and trusts only CurrentUser Root.
 .\source\local-server\Certificates.ps1
 # Run this one in an Administrator PowerShell: adds only the tagged localhost name and saves original bytes.
 .\source\local-server\Certificates.ps1 -HostsOnly
 ```
 
-The CA permits only DNS names under `actual.battle.net`; it is not trusted machine-wide. The leaf certificate names
-only `trinity.actual.battle.net`. Its private key and CA key stay in `local\certs`. No certificate validation bypass is used.
+The CA has a critical permitted DNS subtree `trinity.actual.battle.net` and an excluded descendant subtree
+`.trinity.actual.battle.net`, plus server-authentication purpose and path-length zero. Root constraints are verifier-dependent;
+do not treat them as a universal application security boundary. OpenSSL tests accept the exact name and reject its descendants
+and unrelated names. The leaf names only `trinity.actual.battle.net`, cannot act as a CA, and permits server authentication only.
+
+`certificates.py` generates the RSA-4096 CA signing key in memory, issues exactly one RSA-3072 leaf, and never serializes or
+writes the CA key. Only `server.key` is saved, protected by the local directory's owner/SYSTEM/Administrators ACLs. This avoids
+an on-disk signing-key file; it does not promise protection against OS memory dumps, paging or a compromised machine during
+generation. The retired, untrusted live CA/key were removed. Older protected backups still contain the old, untrusted identity;
+the new CA signing key is absent from every backup because it was never written. Backup now excludes `ca.key`, and database
+restore preserves the currently installed one-leaf TLS identity rather than reviving an older backup's CA key.
+
+Installed leaf validity ends **15 November 2031**; the CA ends **15 December 2031**. `local\certs\profile.json` records exact UTC
+times and public fingerprints. Rotation requires a new authority and a new trust installation because no signing key remains.
+Remove current trust with `Certificates.ps1 -Undo`, stop the login server, then use `Certificates.ps1 -GenerateOnly -Rotate`
+to explicitly generate and validate a fresh five-year identity without installing trust yet. Rerunning the normal setup
+validates/reuses the existing profile and never silently rotates it. No certificate-validation bypass is used.
+
 Undo trust with `Certificates.ps1 -Undo` as the playing user. Undo only this installation's tagged hosts line with
 `Certificates.ps1 -HostsOnly -Undo` as Administrator. Previous hosts bytes are retained in `local\hosts-before-forever.bin`;
 do not overwrite later unrelated hosts edits with that backup.
+
+While the normal login server is running, `verify_windows_tls.ps1` checks Windows user trust, exact localhost resolution,
+successful TLS and rejection of an unrelated hostname, without a certificate-validation callback. Its public report is
+`local\windows-tls-verification.json`. Security regressions: `python -m unittest discover -s source/local-server -p test_certificates.py -v`.
 
 Launcher: [v0.1.36.1](https://github.com/Karrz1/Karrz-playerbots-wow-forever/releases/tag/v0.1.36.1), verified SHA-256
 `6e05740db380c87b6cb5e0bd32da0fce859ed81a675f86e6d560a6ea2549d8a1`.
