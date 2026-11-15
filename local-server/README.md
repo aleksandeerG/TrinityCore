@@ -111,6 +111,10 @@ world server for database/startup/account checks once extraction is complete. Th
 
 After the user chooses to proceed:
 
+For manual setup, the existing public CA file is `local\certs\ca.pem`: install it into the playing user's Trusted Root
+store and add the exact localhost hosts line as Administrator. The launcher helper also recognizes a manual installation.
+The commands below perform the same scoped setup and keep the recorded thumbprint/hosts backup for undo.
+
 ```powershell
 # Run as the Windows user who plays: generates/reuses a private name-constrained CA and trusts only CurrentUser Root.
 .\source\local-server\Certificates.ps1
@@ -162,6 +166,9 @@ The AH bot targets 400 white, 300 green and 100 blue items, zero epic items, wit
 Players still pay for purchases and earn their gear. Raid shortcuts, faster casting and auto raid gear/enchants are off.
 Owned bots use only `match` gear mode. Upstream still generates level-appropriate companion gear; this is not a system
 where every companion starts naked and earns every item. Player XP, gold and drop-rate multipliers retain core defaults.
+Extra bot groups in Group Finder are limited to two listings / ten bots. The instant `.bot dungeon` teleporter is off
+initially: form a party with the addon or `.bot lfg <your role>`, explore/travel to the entrance, and take the bots with you.
+`Playerbot.Lfg.Finder.Enable = 1` restores that optional convenience if you later choose it.
 
 `QuestDrops.GuaranteeOrdinaryCollection = 1` enables the small source customization; set 0 and restart to disable.
 Its default in the public config template is **off**. It changes no SQL rows and survives normal DB updates.
@@ -198,7 +205,8 @@ python .\source\local-server\verify_backup.py '.\backups\<timestamp>'
 .\source\local-server\Server.ps1 check
 ```
 
-Backups leave the world stopped and MySQL running. Verification restores into a new isolated MySQL on port 3318,
+Backups leave the world stopped and MySQL running (starting only MySQL if needed, so a broken game executable can still be recovered).
+Verification restores into a new isolated MySQL on port 3318,
 compares schema counts and checks the dump checksum; it does not write production databases. Test files are retained
 privately for inspection. Keep regular backups on another physical disk too.
 
@@ -214,6 +222,11 @@ refuses a mismatched version, so retain/re-extract matching data from your own c
 
 Do not mark these passed without evidence. Current results are in SESSION.md.
 
+As of 15 November 2026: the source build, 22 quest-policy assertions, migrations, extraction, native server commands,
+loopback listeners, TLS diagnostics, human/orc offline paths and an isolated backup restore passed. Normal game account
+creation and graceful stop/restart also passed. All services are stopped after verification. Real-client gameplay checks
+below remain pending; startup reaches ready state with the data warnings listed here.
+
 - Build, quest regression tests, all five DB migrations and clean startup; verify listeners are loopback only.
 - Real client: log in, create a character, enter the world, gain/loot something, log out and reconnect; confirm save state.
 - Add tank/healer/DPS companions, check follow/attack/healing and persistence; do a suitable normal dungeon when level permits.
@@ -225,6 +238,14 @@ Do not mark these passed without evidence. Current results are in SESSION.md.
 
 Discovered in actual source/docs:
 
+- **Manor Mistmantle (3109):** the client names this map, but no instance-template row, creature spawns or gameobject
+  spawns were present after all migrations, and its navigation mesh could not be built. Treat this content as unverified
+  and incomplete here. Test Dungeon (13) also has no mesh. The other 74 maps produced meshes; all six starter tiles passed.
+- **Iron Kingsguard (274781):** repeated invalid display-model variants 147966/147968 occur during runtime initialization;
+  affected guards can fail to load. These model records still need correction. DBErrors and Playerbot logs now retain
+  at most three 16 MB rotated files plus the current file. Startup reaches ready state but is **not warning-free**.
+- Border-tile MMAP warnings also occur in battleground preloading. Human/orc starting-area offline paths passed; this
+  does not validate battleground gameplay. Bot generation also emits some unknown-spell diagnostics requiring live checks.
 - City of Dalaran boss timers/damage and some access behavior are explicitly **INFERRED**. Grindle Firespark has no spawn
   in the cited source data, so the Prismatic Doors use an inferred three-boss condition.
 - The Drowned City scripts explicitly use inferred timings/damage; no live fight capture is cited.
