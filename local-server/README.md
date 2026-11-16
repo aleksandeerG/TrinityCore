@@ -152,18 +152,26 @@ successful TLS and rejection of an unrelated hostname, without a certificate-val
 Launcher: [v0.1.36.1](https://github.com/Karrz1/Karrz-playerbots-wow-forever/releases/tag/v0.1.36.1), verified SHA-256
 `6e05740db380c87b6cb5e0bd32da0fce859ed81a675f86e6d560a6ea2549d8a1`.
 Its release fixes launcher CPU usage for newer clients; server and addon content match 0.1.36.
-Choose Join / a server you built yourself, address `127.0.0.1`, portal `trinity.actual.battle.net`, region group 8,
-and game folder `F:\Games\World of Warcraft`. Keep the server build/update under these scripts, not the repack updater.
+For this registered source installation, select **This PC (own server)**, address `127.0.0.1`, portal
+`trinity.actual.battle.net`, region group 8, and game folder `F:\Games\World of Warcraft`. Press **Start server**,
+wait for **Server ready**, then **PLAY NOW**. Keep build/update under these scripts rather than the repack updater.
 
-The standalone launcher's **Stop server** action expects its script and working directory at
-`tools\repack\Stop-WoWForever.ps1`. This source deployment originally lacked that directory, causing "The directory
-name is invalid" before shutdown even ran. `Install-LauncherStop.ps1` installs a small marked adapter that delegates
-to `source\local-server\Server.ps1 stop`; `Play.ps1` ensures the adapter exists before opening the launcher. It uses
-the existing save/graceful world shutdown, verified login-process shutdown and MySQL flush/wait logic. The upstream
-launcher executable is unchanged, and no repack database or shutdown scripts are copied into this installation.
-The installer is idempotent and refuses to replace an unmanaged script. If needed, install it directly with
-`.\source\local-server\Install-LauncherStop.ps1`. For start, backup, restore and updates, use the source lifecycle
-commands below; this adapter does not claim to integrate every repack management button.
+The standalone launcher's **Start server**, **Stop server** and **Restart** actions are connected to this existing
+source build by `Install-LauncherIntegration.ps1`, which `Play.ps1` runs before opening the launcher. Small marked
+scripts under `tools\repack` call `launcher_control.py` and the maintained lifecycle code. Start waits for all game
+listeners and a successful world-thread server-info response before printing **Server ready**. Stop saves the world
+and waits for MySQL to finish flushing; Restart performs that stop before starting again.
+
+The initial Stop-only fix supplied the missing `tools\repack` working directory. Start also needed the launcher's
+installation check: the integration now registers the completed source installation using a **non-secret guidance
+file** at `tools\secrets\first-login.txt`. It contains no password; the launcher only tests its existence. Supported
+developer path files point server settings at the actual `server` directory and Restart at our adapter. Existing
+unmanaged files are preserved with an error, rather than overwritten. `Install-LauncherStop.ps1` remains a compatibility
+entry point for the full installer. No launcher binary, database, certificate or account is replaced by integration.
+
+An offer to install the packaged repack is unnecessary for this workspace: choose **No**. The launcher may still show
+an unknown *repack* version because this is a source build. That label is not a server-readiness check. For backup,
+restore and updates, continue using the source commands below; other repack management buttons are not declared supported.
 
 ## Run and play
 

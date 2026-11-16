@@ -4,7 +4,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path (Split-Path $PSScriptRoot -Parent) -Parent
 $launcher = Join-Path $root 'tools\WoWForeverLauncher.exe'
 if (!(Test-Path -LiteralPath $launcher)) { throw 'Download the checksum-verified v0.1.36.1 launcher described in README.md.' }
-& "$PSScriptRoot\Install-LauncherStop.ps1"
+& "$PSScriptRoot\Install-LauncherIntegration.ps1"
 $resolved = @()
 try { $resolved = @([Net.Dns]::GetHostAddresses('trinity.actual.battle.net') | ForEach-Object { $_.ToString() }) } catch { }
 if ($resolved -notcontains '127.0.0.1') { throw 'The local portal mapping is still pending. See Certificates.ps1 -HostsOnly.' }
@@ -20,6 +20,7 @@ else {
 if (!(Test-Path -LiteralPath "Cert:\CurrentUser\Root\$thumb")) { throw 'This Windows account does not trust the local login CA.' }
 & python "$PSScriptRoot\certificates.py" --check
 if ($LASTEXITCODE) { throw 'The one-leaf TLS profile did not validate; client was not started.' }
-Write-Output 'In the launcher choose Join / a server you built yourself, address 127.0.0.1; select F:\Games\World of Warcraft.'
+Write-Output 'Select This PC (own server). Use Start server, wait for Server ready, then press PLAY NOW.'
+Write-Output 'Game folder: F:\Games\World of Warcraft. Server address: 127.0.0.1.'
 Write-Output 'Use the credentials in local\secrets.json. Start the client with the launcher each time.'
 Start-Process -FilePath $launcher -WorkingDirectory $root

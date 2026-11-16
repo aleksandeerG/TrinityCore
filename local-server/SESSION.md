@@ -8,7 +8,17 @@ User requested a locally hosted real WoW Forever server with optional companion,
 
 After discussing alternatives, the user explicitly authorized a new hostname-restricted CA, one longer-lived server certificate, destruction of the signing key, per-user trust and the hosts entry ("let's do this"). Applied the agreed five-year design: the NEW CA signing key was generated only in memory and never serialized; exactly one leaf was issued. No VM/sandbox or separate gaming account was created. Do not bypass TLS verification.
 
-## Launcher Stop integration - 16 November 2026
+## Complete launcher lifecycle integration - 16 November 2026
+
+- User then showed Start's offer to install a repack. The previous Stop-only adapter did not address Start's separate Setup.HasOwnServer gate. Do not install a second server or repack over this source build.
+- Added Install-LauncherIntegration.ps1, launcher_control.py, and Start/Stop/Restart wrappers under tools/repack. Play invokes the full installer; the old Install-LauncherStop entry point delegates to it for compatibility. Scripts use the existing manage.py lifecycle; start waits for 1119/8081/8085/7878 and a world-thread SOAP server-info response before reporting ready.
+- Registered the real completed installation using tools/secrets/first-login.txt containing only guidance, no credentials. Verified assembly IL: its existence is only an installation marker, its contents are not parsed as credentials. Actual required server files are checked before registration. Developer overrides tools/config/server-dir.txt and restart-script.txt point to this workspace's actual server folder and restart adapter. Unmanaged files are refused, and installation was checked for idempotence.
+- Native launcher methods verified HasOwnServer=true, actual server-directory resolution and restart-script discovery. Launcher SHA-256 remains 6e05740db380c87b6cb5e0bd32da0fce859ed81a675f86e6d560a6ea2549d8a1. No packaged binaries, alternate database, new account, trust change or credential copy was introduced.
+- Tested Start via the actual reopened launcher UI (Server tab, Start server), not just the command runner. It launched the existing native MySQL, bnetserver and worldserver config paths and showed the loading message without offering installation. MySQL's two processes are a parent/child pair, not two independent database instances.
+- Start completed with "Server ready" and "Done" in the actual launcher UI. Start is disabled while running; Stop and Restart are enabled. Tested the installed Restart override through the launcher's actual ServerOps.Run while the human account was offline: exit code 0 after save/stop/start/readiness. Both game PIDs changed; exact character GUID/level/XP/map/zone and quest rows matched the pre-restart snapshot. The same installed C++ revision 027ce55378cf remains active. Report: local/launcher-lifecycle-verification.json; before snapshot: local/launcher-restart-before.json. All five expected listeners were ready. Server is now running for play.
+- Backup/restore/update and other repack-specific buttons are not declared integrated; use the maintained source commands. The unknown repack-version footer can remain because this is a source deployment.
+
+## Earlier launcher Stop-only integration - 16 November 2026
 
 - User could not stop through the launcher: "Saving characters and stopping the server ... The directory name is invalid". Server remained running after the failed attempt.
 - Inspected verified launcher assembly metadata/IL with the installed .NET Framework ildasm, without modifying its executable. MainForm sets Root to the executable directory (tools) and Here to Root/repack; DoStopServer passes Stop-WoWForever.ps1 to ServerOps.Run, which uses Here as both script directory and child process working directory. tools/repack did not exist. This is independent of the parent process's working directory.
@@ -58,7 +68,7 @@ After discussing alternatives, the user explicitly authorized a new hostname-res
 - VS 2022/MSVC 19.43, CMake 3.30.5, Ninja; MySQL 8.4.7 portable; Boost 1.92.0 static-md; OpenSSL 3.6.5 shared x64-windows; vcpkg baseline 8f363bdc11359ede4bc51e5eb32a2617538049c8.
 - Shared OpenSSL is essential: static libcrypto collided with bundled CascLib AES symbols in extractor linking. All targets and quest tests subsequently passed.
 - Build.ps1 uses a reversible short drive alias to avoid Windows command-line length limits. W: was removed and runtime restart was verified without it. SourceDirectory, MySQLExecutable and BuildDirectory use full F: paths in configs.
-- **All server processes are stopped cleanly after the user's launcher-Stop request and integration fix.** No Windows services, boot startup, firewall exceptions or router forwarding were installed. Runtime listeners were verified as only 127.0.0.1:3317 (MySQL), 7878 (SOAP), 8085 (world), 1119 and 8081 (login). MySQL X protocol is disabled. RA is off.
+- **The server is running and ready after the Start/Restart integration checks.** No Windows services, boot startup, firewall exceptions or router forwarding were installed. Runtime listeners were verified as only 127.0.0.1:3317 (MySQL), 7878 (SOAP), 8085 (world), 1119 and 8081 (login). MySQL X protocol is disabled. RA is off.
 
 ## Verified results
 
