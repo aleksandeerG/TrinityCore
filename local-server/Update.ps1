@@ -32,6 +32,7 @@ $reference = Git @('rev-parse','forever-bots')
 $referenceBase = Git @('merge-base','forever-bots','upstream/forever-bots')
 if ($reference -eq $referenceBase) { Git @('branch','-f','forever-bots','upstream/forever-bots') }
 & "$PSScriptRoot\Build.ps1" -Jobs $Jobs
+& "$PSScriptRoot\Prepare-Client.ps1"
 & python "$PSScriptRoot\manage.py" start
 if ($LASTEXITCODE) { throw 'Updated source built, but server start failed. See the backup and logs.' }
 # Auth/core sql/custom and bot sql/playerbot_v2 migrations run from SourceDirectory on startup.

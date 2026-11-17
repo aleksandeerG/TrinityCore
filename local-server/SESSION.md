@@ -1,4 +1,4 @@
-﻿# Continuation state - 15 November 2026
+﻿# Continuation state - 17 November 2026
 
 The server setup, authorized one-leaf TLS/hosts connection setup, real-client login, character creation/world entry and native saving are verified. Save/reconnect, companion-party, dungeon and collection-loot gameplay checks remain pending. Do not declare the entire original request complete.
 
@@ -7,6 +7,18 @@ The server setup, authorized one-leaf TLS/hosts connection setup, real-client lo
 User requested a locally hosted real WoW Forever server with optional companion, roaming and auction bots, normal progression, a narrowly scoped collection-drop guarantee, a maintained GitHub fork, and safe manual update/backup/rollback commands. No official-server automation, global loot/XP boosts, automatic BiS gear, router exposure or boot startup.
 
 After discussing alternatives, the user explicitly authorized a new hostname-restricted CA, one longer-lived server certificate, destruction of the signing key, per-user trust and the hosts entry ("let's do this"). Applied the agreed five-year design: the NEW CA signing key was generated only in memory and never serialized; exactly one leaf was issued. No VM/sandbox or separate gaming account was created. Do not bypass TLS verification.
+
+## Upstream integration and local deployment - 17 November 2026
+
+- User requested upstream integration while preserving local play/setup changes, then explicitly chose installation on the local server, including migration/restart. The working tree was clean and the server was already stopped.
+- Merged all 329 incoming commits from upstream/forever-bots through **9e7e4694f5b5481d4052a49112638d7f1a8c8ff7**. Merge commit: **39c15b66c5**. Four overlapping files merged without conflicts. The diff against upstream retained the local quest-loot policy, Windows extraction fixes and local-server scripts; no customization commits were rebased or discarded.
+- Recovery: local branch `backup/aleksanderG-before-upstream-2026-11-17` retains pre-merge checkout **688bafbd21**. Complete pre-migration backup **backups/20261117T133946803880Z**, containing all five databases, installed old binaries, configs and TLS identity; SQL dump checksum reverified before merging. This snapshot has not been separately restore-imported; earlier isolated restore evidence below covers the recovery tooling. Roll back matching databases/binaries/configs/migration source together.
+- Built and installed **7da0f32a3c0052abebafced3e09c90a64cc10809**, RelWithDebInfo, Playerbot V2 enabled. All 1,114 game test cases / 321,175 assertions and 187 tooling cases / 29,950 assertions passed. The local QuestCollectionLoot cases passed 22 assertions; both local certificate regressions passed too. Build/test logs: inspection/upstream-update-20261117-*.log.
+- Refreshed ForeverBots and ForeverDots and added upstream's ForeverCombatNameplates; existing addon copies were backed up under local/client-addon-backups. Installed source files matched by hash. Prepare-Client.ps1 includes all three addons, and Update.ps1 now refreshes them after rebuilding.
+- The normal startup applied all 98 incoming custom SQL files: auth 1, characters 2, hotfixes 10, world 85. Verified both `updates` records and `updates_apply_check` execution markers for every incoming file. World-thread server info and ports 1119/8081/8085/7878 passed; native `bot world` confirmed roaming enabled/cap 60 and `ahbot status` responded. The documented console status command is `bot world`.
+- Private report **local/upstream-update-20261117-verification.json** passed: actual player character level/XP/money/location, inventory, quest status/rewards/objective progress matched the pre-start fingerprints. Every existing .conf file and TLS identity file remained byte-for-byte unchanged. Existing health/kill-XP switches remain 0, ordinary collection guarantee 1, BG auto-join/one seed and dungeon finder 1, roaming cap 60, dungeon XP multiplier 1.8, Respawn.DynamicMode 0. No global default changes were copied over local configs.
+- Native Windows TLS 1.3 accepted the existing hostname and rejected an unrelated one; trust remains CurrentUser and no CA signing key is present. All five server/database listeners remain 127.0.0.1 only. The server is running and ready. Existing beta-data/model/spell and BG-border navmesh warnings continue; no claim of warning-free startup or post-update real-client gameplay is made.
+- Later documentation/update-script commits do not change the installed C++ revision. Real-client login/reconnect, party, dungeon and quest-drop behavior after this update still need user observation.
 
 ## Complete launcher lifecycle integration - 16 November 2026
 
@@ -46,15 +58,15 @@ After discussing alternatives, the user explicitly authorized a new hostname-res
 - Read-only DB checks confirmed playing account 2 (1#1) online, security level 0; new character GUID 316, level 1, human warrior, map 0/zone 12. No levels, gear, quests or teleport shortcuts were granted.
 - Ran native `saveall` without disconnecting the player; server replied "All players saved." Confirmed the character and quest rows 7/status 3 and 5261/status 1 in the character DB. Report: local/client-world-entry-verification.json (2026-11-15T21:55:48Z).
 - Native saving is verified; logout/reconnect persistence has not yet been confirmed. Party controls, dungeon gameplay and ordinary quest-item drops remain unverified. First Northshire kill quests do not constitute a collection-drop test.
-- Keep the game/server running while the user plays. Do not restart or back up in a way that disconnects them without coordinating a stopping point. The latest full backup predates this new real-player character; make a fresh backup at a coordinated stopping point.
+- Keep the game/server running while the user plays. Do not restart or back up in a way that disconnects them without coordinating a stopping point. The 17 November pre-update backup includes the real-player character.
 
 ## Repository and installed build
 
 - Workspace: F:\Games\World of Warcraft Forever Trinity Core. Git checkout: source.
 - Fork: https://github.com/aleksandeerG/TrinityCore. GitHub account spelling is aleksandeerG; custom branch spelling is aleksanderG.
 - origin is the fork; upstream is https://github.com/Karrz1/TrinityCore.git.
-- Clean forever-bots tracks upstream/forever-bots at 51b5ae0971fadf2e96a16b4730e986cc33e29adb. Custom branch tracks origin/aleksanderG.
-- Installed C++ source: **027ce55378cf0ecf88e610989b460eefcf240200**, RelWithDebInfo, BUILD_PLAYERBOT_V2=1. server/build-manifest.json is authoritative.
+- Clean forever-bots tracks upstream/forever-bots at 9e7e4694f5b5481d4052a49112638d7f1a8c8ff7. Custom branch tracks origin/aleksanderG.
+- Installed C++ source: **7da0f32a3c0052abebafced3e09c90a64cc10809**, RelWithDebInfo, BUILD_PLAYERBOT_V2=1. server/build-manifest.json is authoritative.
 - Later commits contain scripts/docs/extraction fixes, not additional runtime C++ changes. Read git log for the latest operations commit. All custom work is pushed to the fork at handoff; no upstream PR was submitted.
 - The separate Karrz-playerbots-wow-forever main repository still describes its source as an older partial copy. It was used for current release documentation/launcher only, never copied over this source tree. Packaged server binaries were not used.
 - No applicable AGENTS.md found in workspace ancestors or the clone. README, contribution/setup/module/bot docs, current release notes, source loot code and actual DB schemas were inspected.
@@ -88,7 +100,8 @@ After discussing alternatives, the user explicitly authorized a new hostname-res
 
 ## Backups and recovery evidence
 
-- **Latest backup:** backups/20261115T220635624487Z (16 November local time), before enabling BG auto participation and dungeon travel. SQL dump 991472378 bytes, SHA-256 803ada70658f09d1ab69d1f750e96a62cb2f1c414c8c9c47c0a04defd085ff97; checksum verified, includes the real player character and corrected login compatibility. This newest snapshot was not separately restore-imported.
+- **Latest backup:** backups/20261117T133946803880Z, before the upstream merge/deployment. Complete, SQL checksum reverified; includes real-player state, the user's current gameplay settings, old source-built binaries and current TLS identity. Not separately restore-imported.
+- Earlier backup: backups/20261115T220635624487Z (16 November local time), before enabling BG auto participation and dungeon travel. SQL dump 991472378 bytes, SHA-256 803ada70658f09d1ab69d1f750e96a62cb2f1c414c8c9c47c0a04defd085ff97; checksum verified, includes the real player character and corrected login compatibility. This snapshot was not separately restore-imported.
 - Previous backup backups/20261115T213559949958Z was created after installing the one-leaf TLS identity. SQL dump 990849043 bytes. Includes the new public CA/server certificates, server key and profile, with no CA signing key. Previous setup backup: backups/20261115T172439867172Z.
 - The 213559 backup passed an actual isolated restore on 127.0.0.1:3318: SHA-256 21a9f3bf36d6ca7cefe6aab1f70c1dee974f3e5d84dfb3ec4cd98fa21a268ded; all five schema counts matched (53/161/484/278/61 for auth/characters/hotfixes/world/playerbot). Critical counts matched: 34 game accounts, 33 BNet accounts, 1 realm, 315 characters including generated bots, 107335 bot names. Test MySQL stopped cleanly; production was not replaced. Report: backups/20261115T213559949958Z/restore-check.json.
 - **Isolated restore actually tested:** backups/20261115T165445573260Z. SQL dump 986825689 bytes, SHA256 fd3c9f455792a67c348e453e4f83539000a43dea1b4eb67c5b86e8165b29606b.

@@ -265,7 +265,7 @@ The updater requires a completely clean `aleksanderG` working tree, fetches **on
 the commits and diff summary. Preview stops there. An actual update stops the world cleanly and backs up all five
 databases, configs, credentials, certificates, installed executables/DLLs and the running build manifest before merging.
 Conflicts stop the operation with the old binaries preserved and the server stopped: resolve and commit, or use
-`git -C source merge --abort`. Rebuild and test, then start; core/auth/custom SQL and bot migrations run from the source
+`git -C source merge --abort`. Rebuild and test, refresh the client addons with backups, then start; core/auth/custom SQL and bot migrations run from the source
 tree at startup. The script waits for server info and listener checks; inspect logs and do login/save/reconnect before
 pushing the merge. Nothing runs in the background or at boot. No release updater overwrites custom binaries.
 
@@ -295,7 +295,12 @@ refuses a mismatched version, so retain/re-extract matching data from your own c
 
 Do not mark these passed without evidence. Current results are in SESSION.md.
 
-As of 15 November 2026: the source build, 22 quest-policy assertions, migrations, extraction, native server commands,
+The 17 November upstream update passed 1,114 game test cases (321,175 assertions), 187 tooling test cases
+(29,950 assertions), the 22 quest-policy assertions, migration execution checks, and native Windows TLS 1.3 validation.
+Player progression, inventory, quest progress, configuration and TLS files matched their pre-update fingerprints.
+The server is running; a real-client login and gameplay check after this update remains pending. See SESSION.md for recovery details.
+
+Earlier verification on 15 November 2026: the source build, 22 quest-policy assertions, migrations, extraction, native server commands,
 loopback listeners, TLS diagnostics, human/orc offline paths and an isolated backup restore passed. Normal game account
 creation and graceful stop/restart also passed. The user is now playing a level-1 human warrior in Northshire Valley;
 real login/world entry and native saving of the character and quests passed. Services remain running for play.
