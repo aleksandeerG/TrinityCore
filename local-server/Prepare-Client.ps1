@@ -12,7 +12,7 @@ $build = [int]$matches[1]
 if ($build -notin @(70938,70888,70862)) { throw "Client build $build needs upstream compatibility review before setup." }
 $addons = Join-Path $game 'Interface\AddOns'
 New-Item -ItemType Directory -Path $addons -Force | Out-Null
-foreach ($name in @('ForeverBots','ForeverDots')) {
+foreach ($name in @('ForeverBots','ForeverDots','ForeverCombatNameplates')) {
     $from = Join-Path $source "src\modules\PlayerbotV2\Addon\$name"
     $to = Join-Path $addons $name
     if (Test-Path -LiteralPath $to) {
@@ -26,4 +26,4 @@ foreach ($name in @('ForeverBots','ForeverDots')) {
     }
     Copy-Item -LiteralPath $from -Destination $addons -Recurse -Force
 }
-Write-Output "Installed the source-matched ForeverBots and ForeverDots addons for client build $build. In game: /fb"
+Write-Output "Installed the source-matched ForeverBots, ForeverDots and ForeverCombatNameplates addons for client build $build. In game: /fb"

@@ -91,7 +91,7 @@ Once the client installation is complete and tools are built:
 Extraction runs mapextractor, vmap4extractor, vmap4assembler, then mmaps_generator against the user's client.
 Bots need **mmaps**. The upstream script validates start tiles and supports resuming. Output and temporary extraction
 files remain under `server`; no Blizzard assets are committed. Do not run extraction during a Battle.net client update.
-The addon installer copies `ForeverBots` and `ForeverDots` from this checkout and backs up existing copies in `local`.
+The addon installer copies `ForeverBots`, `ForeverDots` and `ForeverCombatNameplates` from this checkout and backs up existing copies in `local`.
 
 The documented real-client connection requires:
 
