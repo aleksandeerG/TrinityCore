@@ -22,7 +22,7 @@ All commands below run in PowerShell from `F:\Games\World of Warcraft Forever Tr
 | `local` | Random credentials, CA/private keys, MySQL data, import markers and private state |
 | `backups` | Complete database/config/binary recovery points; private, outside Git |
 | `inspection` | Downloaded documentation and diagnostic/build logs; outside Git |
-| `tools\WoWForeverLauncher.exe` | Verified upstream v0.1.36.1 client launcher |
+| `tools\WoWForeverLocal.exe` | Local server controls, realm connection check, installed client launch, realm-key handling and masked game login |
 | `F:\Games\World of Warcraft` | User's completed Forever client; product `wowf`, `_forever_\Wow.exe` |
 
 `local`, `server` and `backups` have owner/SYSTEM/Administrators ACLs. Do not copy them into `source` or publish them.
@@ -93,12 +93,8 @@ Bots need **mmaps**. The upstream script validates start tiles and supports resu
 files remain under `server`; no Blizzard assets are committed. Do not run extraction during a Battle.net client update.
 The addon installer copies `ForeverBots`, `ForeverDots` and `ForeverCombatNameplates` from this checkout and backs up existing copies in `local`.
 
-The documented real-client connection requires:
-
-1. Exactly `127.0.0.1 trinity.actual.battle.net` in Windows hosts, so that login name reaches this PC.
-2. A certificate for that name, trusted by the Windows account running the game.
-3. The supported launcher each time; it installs the server public key into the running client, including the newer
-   certificate-key mode. Running Wow.exe directly misses that step.
+The existing login server uses `127.0.0.1 trinity.actual.battle.net` and a certificate for that name. The game client
+also verifies the world server's Ed25519 signature using the public key assigned to the configured region group.
 
 **The user authorized the one-leaf certificate design, and connection setup is installed.** The new CA is trusted
 only in the playing user's CurrentUser Root store. The single tagged localhost hosts entry is installed system-wide.
@@ -111,7 +107,7 @@ uses a separate temporary login config and verifies TLS with an explicit CA file
 world server for database/startup/account checks once extraction is complete. These do not constitute real-client login.
 
 For manual setup, the existing public CA file is `local\certs\ca.pem`: install it into the playing user's Trusted Root
-store and add the exact localhost hosts line as Administrator. The launcher helper also recognizes a manual installation.
+store and add the exact localhost hosts line as Administrator. The launcher's connection check uses Windows trust.
 The commands below perform the same scoped setup and keep the recorded thumbprint/hosts backup for undo.
 
 ```powershell
@@ -149,29 +145,25 @@ While the normal login server is running, `verify_windows_tls.ps1` checks Window
 successful TLS and rejection of an unrelated hostname, without a certificate-validation callback. Its public report is
 `local\windows-tls-verification.json`. Security regressions: `python -m unittest discover -s source/local-server -p test_certificates.py -v`.
 
-Launcher: [v0.1.36.1](https://github.com/Karrz1/Karrz-playerbots-wow-forever/releases/tag/v0.1.36.1), verified SHA-256
-`6e05740db380c87b6cb5e0bd32da0fce859ed81a675f86e6d560a6ea2549d8a1`.
-Its release fixes launcher CPU usage for newer clients; server and addon content match 0.1.36.
-For this registered source installation, select **This PC (own server)**, address `127.0.0.1`, portal
-`trinity.actual.battle.net`, region group 8, and game folder `F:\Games\World of Warcraft`. Press **Start server**,
-wait for **Server ready**, then **PLAY NOW**. Keep build/update under these scripts rather than the repack updater.
+Defender quarantined the previous v0.1.36.1 launcher and its shortcut on 19 November 2026. There is no loose upstream
+launcher executable in the workspace. The original repack archive remains available in `downloads`. Use the
+**WoW Forever Local** Desktop shortcut or `Play.ps1`. `Build-Launcher.ps1` compiles the local launcher with Windows'
+64-bit .NET Framework compiler.
 
-The standalone launcher's **Start server**, **Stop server** and **Restart** actions are connected to this existing
-source build by `Install-LauncherIntegration.ps1`, which `Play.ps1` runs before opening the launcher. Small marked
-scripts under `tools\repack` call `launcher_control.py` and the maintained lifecycle code. Start waits for all game
-listeners and a successful world-thread server-info response before printing **Server ready**. Stop saves the world
-and waits for MySQL to finish flushing; Restart performs that stop before starting again.
+**Start**, **Stop**, **Restart**, and **Refresh status** use this workspace's maintained lifecycle code. Start waits
+for the login and world listeners and a successful world-thread server-info response. Stop saves the world and waits
+for MySQL to flush. **Check connection** then verifies the local portal mapping and the login server's Windows TLS
+certificate.
 
-The initial Stop-only fix supplied the missing `tools\repack` working directory. Start also needed the launcher's
-installation check: the integration now registers the completed source installation using a **non-secret guidance
-file** at `tools\secrets\first-login.txt`. It contains no password; the launcher only tests its existence. Supported
-developer path files point server settings at the actual `server` directory and Restart at our adapter. Existing
-unmanaged files are preserved with an error, rather than overwritten. `Install-LauncherStop.ps1` remains a compatibility
-entry point for the full installer. No launcher binary, database, certificate or account is replaced by integration.
+Use **Choose client** to select `Wow.exe` or `WowB.exe` if the detected client is wrong, then click **Play**. The
+launcher remembers the executable under `tools\config\local-client.txt`. It opens the client with
+`WTF\ForeverLocal.wtf` and preserves `Config.wtf`. Sign in using the local account shown in the launcher.
 
-An offer to install the packaged repack is unnecessary for this workspace: choose **No**. The launcher may still show
-an unknown *repack* version because this is a source build. That label is not a server-readiness check. For backup,
-restore and updates, continue using the source commands below; other repack management buttons are not declared supported.
+The launcher checks Windows TLS before opening the game. It applies the server's public key to the configured
+region group in the client's validated login key table and reapplies it when the game rebuilds the table. Keep the
+launcher open while you play. If the first login attempt fails while the table is loading, retry once the launcher
+reports **Local realm key verified**. The connection flow was tested with an isolated Windows process. World entry
+through this launcher still needs a live login test.
 
 ## Run and play
 
@@ -187,8 +179,7 @@ restore and updates, continue using the source commands below; other repack mana
 
 The created local login is `aleksander@forever.local`, with a random password in `local\secrets.json`. It is a server-local
 account, not a Blizzard account. `create-account` preserves an existing account and needs a running world server.
-`Show-Login.ps1` opens a local window containing only this playing account, with the password masked by default and
-explicit reveal/copy controls. It never prints credentials, creates another credential file or copies automatically.
+The local launcher displays the playing account and password without writing either to logs or another file.
 This revision allows all accounts to control their own companions. The game account stays normal; the separate `FFADMIN`
 account is used only for local lifecycle commands. Do not use GM levelling, gear or teleport commands for progression checks.
 

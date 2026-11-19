@@ -8,6 +8,12 @@ User requested a locally hosted real WoW Forever server with optional companion,
 
 After discussing alternatives, the user explicitly authorized a new hostname-restricted CA, one longer-lived server certificate, destruction of the signing key, per-user trust and the hosts entry ("let's do this"). Applied the agreed five-year design: the NEW CA signing key was generated only in memory and never serialized; exactly one leaf was issued. No VM/sandbox or separate gaming account was created. Do not bypass TLS verification.
 
+## Local launcher connection support - 19 November 2026
+
+- Rebuilt `tools/WoWForeverLocal.exe` from the local C# source. Play uses the existing Windows TLS check, launches the selected client with `WTF\ForeverLocal.wtf`, and monitors the validated login key table in that process. The monitor uses the region group from the installed world server configuration and the Ed25519 public key verified against the server source.
+- A disposable Windows client process verified the table format, ambiguous-table handling, table discovery across a scan boundary, exact key write, reapplication after a reset, rediscovery after relocation, and cleanup on launcher's cancellation or game exit. Profile fixtures verified locale detection and byte-for-byte preservation of `Config.wtf`. Live world entry using the new launcher still needs verification.
+- The previous loose upstream launcher was already absent after Defender quarantine. The multi-purpose repack archive remains available as the original download.
+
 ## Upstream integration and local deployment - 17 November 2026
 
 - User requested upstream integration while preserving local play/setup changes, then explicitly chose installation on the local server, including migration/restart. The working tree was clean and the server was already stopped.
@@ -131,7 +137,7 @@ After discussing alternatives, the user explicitly authorized a new hostname-res
 ## Remaining work - requires observable real client
 
 1. Hostname/per-user trust setup is complete and authorized; no further approval is needed for that scope. Consult the section above before rotating certificates or restoring legacy backups.
-2. Start/check the full server and current checksum-verified WoWForeverLauncher.exe. See README/Play.ps1. Do not start Wow.exe directly or use Blizzard account credentials for the local realm.
+2. Start/check the full server in WoW Forever Local. See README/Play.ps1. Verify world entry and reconnect through the new local launcher's public-key monitor.
 3. Real-client login, character creation, world entry and native saving are confirmed. Have the user reconnect to confirm position/quests/inventory persist. The pre-feature-change backup 20261115T220635624487Z now includes the real character, and was made while that account was offline; the backup command stops the world.
 4. Verify a tank/healer/DPS party, commands and an appropriate dungeon at a normal level. No player XP/gear boosts were used for setup.
 5. Verify collection quest 60 (Kobold Candles: 8 x item 772, William Pestle) or 83 (Red Linen Goods: 6 x item 1019, Sara Timberlain), no extra quest-only loot after need ends, unchanged unrelated loot, and group eligibility. These gameplay checks are **pending**, not passed.
