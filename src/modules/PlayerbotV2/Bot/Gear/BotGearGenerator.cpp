@@ -1031,6 +1031,7 @@ std::vector<GearItem> GenerateGearFor(GearGenerationContext const& ctx)
             // A rogue wields two weapons: a shield or a held-in-off-hand caster item (Royal Scepter of Vek'lor, the tier 3 damage_parity
             // rogue 2026-10-11) leaves the off hand dead, dual_wield false and the rogue at a third of its damage. Whatever the gear mode.
             if (slot == EQUIPMENT_SLOT_OFFHAND && ::Playerbot::Gear::OffhandMustBeWeapon(ctx.cls, ctx.spec) && tpl->GetClass() != ITEM_CLASS_WEAPON) continue;
+            if (slot == EQUIPMENT_SLOT_OFFHAND && !can_dual_wield && tpl->GetClass() == ITEM_CLASS_WEAPON) continue;
             int32 ilvl = ::Playerbot::Gear::EffectiveItemLevelForLevel(tpl, ctx.level);
             int32 combined;
             if (raid)
@@ -1039,7 +1040,6 @@ std::vector<GearItem> GenerateGearFor(GearGenerationContext const& ctx)
                 bool const pvp_piece = pvp_slot && ::Playerbot::Gear::IsPvpItem(tpl) && tpl->GetQuality() >= ITEM_QUALITY_RARE;
                 if ((!pvp_piece && ::Playerbot::Gear::IsPvpItem(tpl)) || ilvl > raid_cap) continue;
                 if (!pvp_piece && ctx.world_bot() && tpl->GetQuality() >= ITEM_QUALITY_EPIC && !WorldEpicAllowed(ctx.bot_id, slot)) continue;
-                if (slot == EQUIPMENT_SLOT_OFFHAND && !can_dual_wield && tpl->GetClass() == ITEM_CLASS_WEAPON) continue;
                 int32 const fit = ::Playerbot::Gear::ScoreItemRaid(tpl, ctx.cls, ctx.spec, ctx.level, slot);
                 if (fit <= -100000) continue;
                 // Rare / epic of the raid-prep levels outrank everything else, whatever the stats; the rest only fill a slot
@@ -1053,7 +1053,6 @@ std::vector<GearItem> GenerateGearFor(GearGenerationContext const& ctx)
             else if (owned_lv)
             {
                 if (!Owned::PieceAllowed(int32(tpl->GetQuality()), ilvl, ctx.level, owned_band) || ::Playerbot::Gear::IsPvpItem(tpl)) continue;
-                if (slot == EQUIPMENT_SLOT_OFFHAND && !can_dual_wield && tpl->GetClass() == ITEM_CLASS_WEAPON) continue;
                 int32 const fit = OwnedSlotScore(tpl, ctx.cls, ctx.spec, ctx.level, slot);
                 if (fit <= -100000) continue;
                 combined = fit;

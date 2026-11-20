@@ -10,6 +10,7 @@ import json
 import shutil
 import socket
 import subprocess
+import sys
 import time
 import urllib.request
 from xml.sax.saxutils import escape
@@ -234,6 +235,10 @@ def restore(path, confirmed):
     current = credentials()
     old = json.loads((path / "local/secrets.json").read_text())
     mysql(file=path / "databases.sql")
+    from configure import ACCEPTED_BUILDS, ensure_accepted_builds
+    registered_builds = set(map(int, mysql("SELECT build FROM build_info;", "ff_auth").splitlines()))
+    restored_defaults = tuple(build for build in ACCEPTED_BUILDS if build in registered_builds)
+    requested_builds = set(ACCEPTED_BUILDS)
     mysql(f"ALTER USER 'forever_local'@'127.0.0.1' IDENTIFIED BY '{old['mysql_server']}';")
     for name in ["worldserver.conf", "bnetserver.conf", "worldserver.exe", "bnetserver.exe"]:
         shutil.copy2(path / "server" / name, SERVER / name)
@@ -258,10 +263,10 @@ def restore(path, confirmed):
         text = target.read_text(encoding="utf-8-sig")
         text = re.sub(r'^\s*SourceDirectory\s*=.*$', lambda _: 'SourceDirectory = "' + rollback_source.as_posix() + '"', text, flags=re.M)
         target.write_text(text, encoding="utf-8")
-        # Earlier snapshots preserved bnetserver's default-empty build list, hiding
-        # the realm from this same installed client. Keep compatibility on rollback.
-        from configure import ensure_accepted_builds
-        ensure_accepted_builds(target)
+        requested_builds.update(ensure_accepted_builds(target, restored_defaults))
+    for build in sorted(requested_builds - registered_builds):
+        print(f"Warning: restored ff_auth.build_info has no row for build {build}. "
+              f"Clients on that build need a compatible auth row and Realm.AlsoAcceptBuilds in both configs.", file=sys.stderr)
     print(f"Restored matching databases, binaries, credentials and configuration. Safety backup: {safety}")
     print(f"Migration source pinned to {rollback_source}. Start and check the server before playing.")
 

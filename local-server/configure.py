@@ -5,19 +5,23 @@ import re
 import shutil
 from bootstrap import ROOT, SOURCE, LOCAL, SERVER
 
-ACCEPTED_BUILDS = (70938, 70888, 70862)
+ACCEPTED_BUILDS = (70959, 70938, 70888, 70862)
 
 
-def ensure_accepted_builds(target):
+def accepted_builds_value(builds):
+    return '"' + ','.join(map(str, builds)) + '"'
+
+
+def ensure_accepted_builds(target, defaults=ACCEPTED_BUILDS):
     """Migrate only this compatibility key in earlier preserved configs.
 
     A default-empty bnet list hides a realm whose native build differs from the
     installed client, even when worldserver already accepts that client build.
     """
     text = target.read_text(encoding="utf-8-sig")
-    pattern = r'^\s*Realm\.AlsoAcceptBuilds\s*=\s*"([^"\r\n]*)"[^\r\n]*'
+    pattern = r'^[ \t]*Realm\.AlsoAcceptBuilds[ \t]*=[ \t]*"([^"\r\n]*)"'
     match = re.search(pattern, text, flags=re.M)
-    builds = list(ACCEPTED_BUILDS)
+    builds = list(defaults)
     if match:
         for value in match.group(1).split(','):
             value = value.strip()
@@ -26,11 +30,12 @@ def ensure_accepted_builds(target):
                     raise RuntimeError(f"Invalid Realm.AlsoAcceptBuilds in {target.name}; preserved for inspection.")
                 if int(value) not in builds:
                     builds.append(int(value))
-    line = 'Realm.AlsoAcceptBuilds = "' + ','.join(map(str, builds)) + '"'
+    line = 'Realm.AlsoAcceptBuilds = ' + accepted_builds_value(builds)
     updated = re.sub(pattern, lambda _: line, text, flags=re.M) if match else text + '\n' + line + '\n'
     if updated != text:
         target.write_text(updated, encoding="utf-8")
         print(f"Updated accepted-client builds in {target.name}; other settings preserved.")
+    return builds
 
 
 def render(template, target, values):
@@ -56,7 +61,7 @@ def main():
     quote = lambda path: '"' + path.as_posix() + '"'
     connection = lambda name: f'"127.0.0.1;3317;forever_local;{credentials["mysql_server"]};{name}"'
     common = {"LoginDatabaseInfo": connection("ff_auth"), "BindIP": '"127.0.0.1"', "LogsDir": quote(SERVER / "logs"),
-              "Realm.AlsoAcceptBuilds": '"70938,70888,70862"',
+              "Realm.AlsoAcceptBuilds": accepted_builds_value(ACCEPTED_BUILDS),
               "MySQLExecutable": quote(ROOT / "dependencies/mysql/mysql-8.4.7-winx64/bin/mysql.exe"),
               "BuildDirectory": quote(ROOT / "build"),
               "SourceDirectory": quote(SOURCE)}
@@ -64,7 +69,7 @@ def main():
         **common, "WorldDatabaseInfo": connection("ff_world"), "CharacterDatabaseInfo": connection("ff_characters"),
         "HotfixDatabaseInfo": connection("ff_hotfixes"), "RealmID": 70, "Expansion": 0,
         "DataDir": quote(SERVER), "Updates.EnableDatabases": 15, "Network.SkipBuildAuthKeyCheck": 1,
-        "Network.EnterEncryptedModeRegionGroup": 8, "Realm.AlsoAcceptBuilds": '"70938,70888,70862"',
+        "Network.EnterEncryptedModeRegionGroup": 8,
         "Console.Enable": 0, "Ra.Enable": 0, "SOAP.Enabled": 1, "SOAP.IP": '"127.0.0.1"',
         "SOAP.Port": 7878, "PidFile": quote(LOCAL / "worldserver.pid"), "GM.LoginState": 0,
     })
